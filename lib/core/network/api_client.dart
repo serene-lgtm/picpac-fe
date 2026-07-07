@@ -8,121 +8,247 @@ class ApiClient {
   ApiClient({
     required String baseUrl,
     HttpClient? httpClient,
+    this.accessTokenProvider,
+    this.onUnauthorized,
     this.timeout = const Duration(seconds: 20),
   }) : _baseUri = Uri.parse(baseUrl),
        _httpClient = httpClient ?? HttpClient();
 
   final Uri _baseUri;
   final HttpClient _httpClient;
+  final String? Function()? accessTokenProvider;
+  final Future<bool> Function()? onUnauthorized;
   final Duration timeout;
+
+  Future<bool>? _refreshInFlight;
 
   Future<Map<String, dynamic>> getJson(
     String path, {
     Map<String, String?> queryParameters = const {},
-  }) async {
-    final uri = _buildUri(path, queryParameters);
-    final request = await _httpClient.getUrl(uri).timeout(timeout);
-    request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-    final response = await request.close().timeout(timeout);
-    return _decodeObjectResponse(response);
+    bool requiresAuth = true,
+  }) {
+    return _sendWithRefresh(
+      requiresAuth: requiresAuth,
+      send: () async {
+        final uri = _buildUri(path, queryParameters);
+        final request = await _httpClient.getUrl(uri).timeout(timeout);
+        request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+        _setAuthorizationHeader(request, requiresAuth: requiresAuth);
+        return request.close().timeout(timeout);
+      },
+    );
   }
 
   Future<Map<String, dynamic>> postJson(
     String path, {
     required Map<String, dynamic> body,
-  }) async {
-    final uri = _buildUri(path);
-    final request = await _httpClient.postUrl(uri).timeout(timeout);
-    request.headers
-      ..set(HttpHeaders.acceptHeader, 'application/json')
-      ..set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
-    request.add(utf8.encode(jsonEncode(body)));
-    final response = await request.close().timeout(timeout);
-    return _decodeObjectResponse(response);
+    bool requiresAuth = true,
+  }) {
+    return _sendWithRefresh(
+      requiresAuth: requiresAuth,
+      send: () async {
+        final uri = _buildUri(path);
+        final request = await _httpClient.postUrl(uri).timeout(timeout);
+        request.headers
+          ..set(HttpHeaders.acceptHeader, 'application/json')
+          ..set(
+            HttpHeaders.contentTypeHeader,
+            'application/json; charset=utf-8',
+          );
+        _setAuthorizationHeader(request, requiresAuth: requiresAuth);
+        request.add(utf8.encode(jsonEncode(body)));
+        return request.close().timeout(timeout);
+      },
+    );
   }
 
   Future<Map<String, dynamic>> putJson(
     String path, {
     required Map<String, dynamic> body,
-  }) async {
-    final uri = _buildUri(path);
-    final request = await _httpClient.putUrl(uri).timeout(timeout);
-    request.headers
-      ..set(HttpHeaders.acceptHeader, 'application/json')
-      ..set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
-    request.add(utf8.encode(jsonEncode(body)));
-    final response = await request.close().timeout(timeout);
-    return _decodeObjectResponse(response);
+    bool requiresAuth = true,
+  }) {
+    return _sendWithRefresh(
+      requiresAuth: requiresAuth,
+      send: () async {
+        final uri = _buildUri(path);
+        final request = await _httpClient.putUrl(uri).timeout(timeout);
+        request.headers
+          ..set(HttpHeaders.acceptHeader, 'application/json')
+          ..set(
+            HttpHeaders.contentTypeHeader,
+            'application/json; charset=utf-8',
+          );
+        _setAuthorizationHeader(request, requiresAuth: requiresAuth);
+        request.add(utf8.encode(jsonEncode(body)));
+        return request.close().timeout(timeout);
+      },
+    );
   }
 
   Future<Map<String, dynamic>> patchJson(
     String path, {
     required Map<String, dynamic> body,
-  }) async {
-    final uri = _buildUri(path);
-    final request = await _httpClient.openUrl('PATCH', uri).timeout(timeout);
-    request.headers
-      ..set(HttpHeaders.acceptHeader, 'application/json')
-      ..set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
-    request.add(utf8.encode(jsonEncode(body)));
-    final response = await request.close().timeout(timeout);
-    return _decodeObjectResponse(response);
+    bool requiresAuth = true,
+  }) {
+    return _sendWithRefresh(
+      requiresAuth: requiresAuth,
+      send: () async {
+        final uri = _buildUri(path);
+        final request = await _httpClient
+            .openUrl('PATCH', uri)
+            .timeout(timeout);
+        request.headers
+          ..set(HttpHeaders.acceptHeader, 'application/json')
+          ..set(
+            HttpHeaders.contentTypeHeader,
+            'application/json; charset=utf-8',
+          );
+        _setAuthorizationHeader(request, requiresAuth: requiresAuth);
+        request.add(utf8.encode(jsonEncode(body)));
+        return request.close().timeout(timeout);
+      },
+    );
   }
 
   Future<Map<String, dynamic>> deleteJson(
     String path, {
     Map<String, dynamic>? body,
-  }) async {
-    final uri = _buildUri(path);
-    final request = await _httpClient.deleteUrl(uri).timeout(timeout);
-    request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-    if (body != null) {
-      request.headers.set(
-        HttpHeaders.contentTypeHeader,
-        'application/json; charset=utf-8',
-      );
-      request.add(utf8.encode(jsonEncode(body)));
-    }
-    final response = await request.close().timeout(timeout);
-    return _decodeObjectResponse(response);
+    bool requiresAuth = true,
+  }) {
+    return _sendWithRefresh(
+      requiresAuth: requiresAuth,
+      send: () async {
+        final uri = _buildUri(path);
+        final request = await _httpClient.deleteUrl(uri).timeout(timeout);
+        request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+        _setAuthorizationHeader(request, requiresAuth: requiresAuth);
+        if (body != null) {
+          request.headers.set(
+            HttpHeaders.contentTypeHeader,
+            'application/json; charset=utf-8',
+          );
+          request.add(utf8.encode(jsonEncode(body)));
+        }
+        return request.close().timeout(timeout);
+      },
+    );
   }
 
   Future<Map<String, dynamic>> postMultipart(
     String path, {
     required Map<String, String> fields,
     MultipartFilePart? file,
+    bool requiresAuth = true,
+  }) {
+    return _sendMultipart(
+      'POST',
+      path,
+      fields: fields,
+      file: file,
+      requiresAuth: requiresAuth,
+    );
+  }
+
+  Future<Map<String, dynamic>> putMultipart(
+    String path, {
+    required Map<String, String> fields,
+    MultipartFilePart? file,
+    bool requiresAuth = true,
+  }) {
+    return _sendMultipart(
+      'PUT',
+      path,
+      fields: fields,
+      file: file,
+      requiresAuth: requiresAuth,
+    );
+  }
+
+  Future<Map<String, dynamic>> _sendMultipart(
+    String method,
+    String path, {
+    required Map<String, String> fields,
+    MultipartFilePart? file,
+    required bool requiresAuth,
+  }) {
+    return _sendWithRefresh(
+      requiresAuth: requiresAuth,
+      send: () async {
+        final uri = _buildUri(path);
+        final boundary = 'picpac-${DateTime.now().microsecondsSinceEpoch}';
+        final request = await _httpClient.openUrl(method, uri).timeout(timeout);
+        request.headers
+          ..set(HttpHeaders.acceptHeader, 'application/json')
+          ..set(
+            HttpHeaders.contentTypeHeader,
+            'multipart/form-data; boundary=$boundary',
+          );
+        _setAuthorizationHeader(request, requiresAuth: requiresAuth);
+
+        for (final entry in fields.entries) {
+          request.write('--$boundary\r\n');
+          request.write(
+            'Content-Disposition: form-data; name="${entry.key}"\r\n',
+          );
+          request.write('Content-Type: text/plain; charset=utf-8\r\n\r\n');
+          request.add(utf8.encode(entry.value));
+          request.write('\r\n');
+        }
+        if (file != null) {
+          request.write('--$boundary\r\n');
+          request.write(
+            'Content-Disposition: form-data; name="${file.fieldName}"; '
+            'filename="${file.fileName}"\r\n',
+          );
+          request.write('Content-Type: ${file.contentType}\r\n\r\n');
+          request.add(await file.bytes);
+          request.write('\r\n');
+        }
+        request.write('--$boundary--\r\n');
+
+        return request.close().timeout(timeout);
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> _sendWithRefresh({
+    required bool requiresAuth,
+    required Future<HttpClientResponse> Function() send,
   }) async {
-    final uri = _buildUri(path);
-    final boundary = 'picpac-${DateTime.now().microsecondsSinceEpoch}';
-    final request = await _httpClient.postUrl(uri).timeout(timeout);
-    request.headers
-      ..set(HttpHeaders.acceptHeader, 'application/json')
-      ..set(
-        HttpHeaders.contentTypeHeader,
-        'multipart/form-data; boundary=$boundary',
-      );
+    var response = await send();
+    var body = await utf8.decodeStream(response);
 
-    for (final entry in fields.entries) {
-      request.write('--$boundary\r\n');
-      request.write('Content-Disposition: form-data; name="${entry.key}"\r\n');
-      request.write('Content-Type: text/plain; charset=utf-8\r\n\r\n');
-      request.add(utf8.encode(entry.value));
-      request.write('\r\n');
+    if (_shouldRefresh(response.statusCode, requiresAuth)) {
+      final refreshed = await _refreshAuthorization();
+      if (refreshed) {
+        response = await send();
+        body = await utf8.decodeStream(response);
+      }
     }
-    if (file != null) {
-      request.write('--$boundary\r\n');
-      request.write(
-        'Content-Disposition: form-data; name="${file.fieldName}"; '
-        'filename="${file.fileName}"\r\n',
-      );
-      request.write('Content-Type: ${file.contentType}\r\n\r\n');
-      request.add(await file.bytes);
-      request.write('\r\n');
-    }
-    request.write('--$boundary--\r\n');
 
-    final response = await request.close().timeout(timeout);
-    return _decodeObjectResponse(response);
+    return _decodeObjectBody(body, response.statusCode);
+  }
+
+  bool _shouldRefresh(int statusCode, bool requiresAuth) {
+    if (!requiresAuth) return false;
+    final token = accessTokenProvider?.call()?.trim();
+    return statusCode == 401 && token != null && token.isNotEmpty;
+  }
+
+  Future<bool> _refreshAuthorization() async {
+    final active = _refreshInFlight;
+    if (active != null) {
+      return active;
+    }
+    final future = onUnauthorized?.call() ?? Future<bool>.value(false);
+    _refreshInFlight = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_refreshInFlight, future)) {
+        _refreshInFlight = null;
+      }
+    }
   }
 
   Uri _buildUri(
@@ -143,11 +269,7 @@ class ApiClient {
     );
   }
 
-  Future<Map<String, dynamic>> _decodeObjectResponse(
-    HttpClientResponse response,
-  ) async {
-    final body = await utf8.decodeStream(response);
-    final statusCode = response.statusCode;
+  Map<String, dynamic> _decodeObjectBody(String body, int statusCode) {
     if (statusCode < 200 || statusCode >= 300) {
       throw ApiException(body.isEmpty ? '请求失败' : body, statusCode: statusCode);
     }
@@ -159,6 +281,16 @@ class ApiClient {
       return decoded;
     }
     throw ApiException('接口返回格式不是 JSON object', statusCode: statusCode);
+  }
+
+  void _setAuthorizationHeader(
+    HttpClientRequest request, {
+    required bool requiresAuth,
+  }) {
+    if (!requiresAuth) return;
+    final token = accessTokenProvider?.call()?.trim();
+    if (token == null || token.isEmpty) return;
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
   }
 }
 

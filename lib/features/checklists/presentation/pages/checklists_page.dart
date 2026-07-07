@@ -6,6 +6,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../items/data/item.dart';
 import '../../../items/data/item_repository.dart';
+import '../../../me/data/me_repository.dart';
+import '../../../me/presentation/pages/me_page.dart';
 import '../../../packs/data/pack.dart';
 import '../../../packs/data/pack_repository.dart';
 import '../../../packs/presentation/pages/create_pack_page.dart';
@@ -22,11 +24,13 @@ class ChecklistsPage extends StatefulWidget {
     required this.checklistRepository,
     required this.itemRepository,
     required this.packRepository,
+    required this.meRepository,
   });
 
   final ChecklistRepository checklistRepository;
   final ItemRepository itemRepository;
   final PackRepository packRepository;
+  final MeRepository meRepository;
 
   @override
   State<ChecklistsPage> createState() => _ChecklistsPageState();
@@ -82,6 +86,19 @@ class _ChecklistsPageState extends State<ChecklistsPage> {
       Navigator.of(context).pushReplacement(
         noAnimationRoute<void>(
           (context) => PacksPage(
+            itemRepository: widget.itemRepository,
+            packRepository: widget.packRepository,
+            checklistRepository: widget.checklistRepository,
+            meRepository: widget.meRepository,
+          ),
+        ),
+      );
+    }
+    if (tab == BottomTab.me) {
+      Navigator.of(context).pushReplacement(
+        noAnimationRoute<void>(
+          (context) => MePage(
+            meRepository: widget.meRepository,
             itemRepository: widget.itemRepository,
             packRepository: widget.packRepository,
             checklistRepository: widget.checklistRepository,
