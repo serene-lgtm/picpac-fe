@@ -8,6 +8,8 @@ import '../../../checklists/data/checklist_repository.dart';
 import '../../../checklists/presentation/pages/checklists_page.dart';
 import '../../../items/data/item.dart';
 import '../../../items/data/item_repository.dart';
+import '../../../me/data/me_repository.dart';
+import '../../../me/presentation/pages/me_page.dart';
 import '../../data/pack.dart';
 import '../../data/pack_repository.dart';
 import '../../../../shared/navigation/no_animation_route.dart';
@@ -21,11 +23,13 @@ class PacksPage extends StatefulWidget {
     required this.itemRepository,
     required this.packRepository,
     required this.checklistRepository,
+    required this.meRepository,
   });
 
   final ItemRepository itemRepository;
   final PackRepository packRepository;
   final ChecklistRepository checklistRepository;
+  final MeRepository meRepository;
 
   @override
   State<PacksPage> createState() => _PacksPageState();
@@ -70,6 +74,8 @@ class _PacksPageState extends State<PacksPage> {
         builder: (context) => PackSearchPage(
           packRepository: widget.packRepository,
           itemRepository: widget.itemRepository,
+          meRepository: widget.meRepository,
+          checklistRepository: widget.checklistRepository,
         ),
       ),
     );
@@ -87,6 +93,19 @@ class _PacksPageState extends State<PacksPage> {
             checklistRepository: widget.checklistRepository,
             itemRepository: widget.itemRepository,
             packRepository: widget.packRepository,
+            meRepository: widget.meRepository,
+          ),
+        ),
+      );
+    }
+    if (tab == BottomTab.me) {
+      Navigator.of(context).pushReplacement(
+        noAnimationRoute<void>(
+          (context) => MePage(
+            meRepository: widget.meRepository,
+            itemRepository: widget.itemRepository,
+            packRepository: widget.packRepository,
+            checklistRepository: widget.checklistRepository,
           ),
         ),
       );
@@ -312,10 +331,14 @@ class PackSearchPage extends StatefulWidget {
     super.key,
     required this.packRepository,
     required this.itemRepository,
+    required this.meRepository,
+    required this.checklistRepository,
   });
 
   final PackRepository packRepository;
   final ItemRepository itemRepository;
+  final MeRepository meRepository;
+  final ChecklistRepository checklistRepository;
 
   @override
   State<PackSearchPage> createState() => _PackSearchPageState();
@@ -453,6 +476,30 @@ class _PackSearchPageState extends State<PackSearchPage> {
                   onTabSelected: (tab) {
                     if (tab == BottomTab.item) {
                       Navigator.of(context).popUntil((route) => route.isFirst);
+                    }
+                    if (tab == BottomTab.checklist) {
+                      Navigator.of(context).pushReplacement(
+                        noAnimationRoute<void>(
+                          (context) => ChecklistsPage(
+                            checklistRepository: widget.checklistRepository,
+                            itemRepository: widget.itemRepository,
+                            packRepository: widget.packRepository,
+                            meRepository: widget.meRepository,
+                          ),
+                        ),
+                      );
+                    }
+                    if (tab == BottomTab.me) {
+                      Navigator.of(context).pushReplacement(
+                        noAnimationRoute<void>(
+                          (context) => MePage(
+                            meRepository: widget.meRepository,
+                            itemRepository: widget.itemRepository,
+                            packRepository: widget.packRepository,
+                            checklistRepository: widget.checklistRepository,
+                          ),
+                        ),
+                      );
                     }
                   },
                 ),

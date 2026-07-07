@@ -6,6 +6,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../checklists/data/checklist_repository.dart';
 import '../../../checklists/presentation/pages/checklists_page.dart';
+import '../../../me/data/me_repository.dart';
+import '../../../me/presentation/pages/me_page.dart';
 import '../../data/item.dart';
 import '../../data/item_repository.dart';
 import '../../../packs/data/pack_repository.dart';
@@ -28,11 +30,13 @@ class ItemsPage extends StatefulWidget {
     required this.repository,
     required this.packRepository,
     required this.checklistRepository,
+    required this.meRepository,
   });
 
   final ItemRepository repository;
   final PackRepository packRepository;
   final ChecklistRepository checklistRepository;
+  final MeRepository meRepository;
 
   @override
   State<ItemsPage> createState() => _ItemsPageState();
@@ -111,6 +115,7 @@ class _ItemsPageState extends State<ItemsPage> {
           itemRepository: widget.repository,
           packRepository: widget.packRepository,
           checklistRepository: widget.checklistRepository,
+          meRepository: widget.meRepository,
         ),
       ),
     );
@@ -125,6 +130,7 @@ class _ItemsPageState extends State<ItemsPage> {
             itemRepository: widget.repository,
             packRepository: widget.packRepository,
             checklistRepository: widget.checklistRepository,
+            meRepository: widget.meRepository,
           ),
         ),
       );
@@ -136,6 +142,19 @@ class _ItemsPageState extends State<ItemsPage> {
             checklistRepository: widget.checklistRepository,
             itemRepository: widget.repository,
             packRepository: widget.packRepository,
+            meRepository: widget.meRepository,
+          ),
+        ),
+      );
+    }
+    if (tab == BottomTab.me) {
+      Navigator.of(context).push(
+        noAnimationRoute<void>(
+          (context) => MePage(
+            meRepository: widget.meRepository,
+            itemRepository: widget.repository,
+            packRepository: widget.packRepository,
+            checklistRepository: widget.checklistRepository,
           ),
         ),
       );
@@ -263,12 +282,14 @@ class ItemDetailPage extends StatelessWidget {
     required this.itemRepository,
     required this.packRepository,
     required this.checklistRepository,
+    required this.meRepository,
   });
 
   final Item item;
   final ItemRepository itemRepository;
   final PackRepository packRepository;
   final ChecklistRepository checklistRepository;
+  final MeRepository meRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -357,6 +378,7 @@ class ItemDetailPage extends StatelessWidget {
                               itemRepository: itemRepository,
                               packRepository: packRepository,
                               checklistRepository: checklistRepository,
+                              meRepository: meRepository,
                             ),
                           ),
                         );
@@ -368,6 +390,19 @@ class ItemDetailPage extends StatelessWidget {
                               checklistRepository: checklistRepository,
                               itemRepository: itemRepository,
                               packRepository: packRepository,
+                              meRepository: meRepository,
+                            ),
+                          ),
+                        );
+                      }
+                      if (tab == BottomTab.me) {
+                        Navigator.of(context).pushReplacement(
+                          noAnimationRoute<void>(
+                            (context) => MePage(
+                              meRepository: meRepository,
+                              itemRepository: itemRepository,
+                              packRepository: packRepository,
+                              checklistRepository: checklistRepository,
                             ),
                           ),
                         );
