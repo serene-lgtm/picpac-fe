@@ -4,16 +4,32 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/network/api_client.dart';
+import '../../data/item.dart';
 
 class AddItemSheet extends StatefulWidget {
-  const AddItemSheet({super.key, required this.onSubmit});
+  const AddItemSheet({
+    super.key,
+    required this.onSubmit,
+    this.initialItem,
+    this.onSubmitted,
+    this.popOnSubmit = true,
+    this.submitLabel = '保存',
+    this.title = '添加物品',
+    this.onCancel,
+  });
 
-  final Future<void> Function(
+  final Future<Item> Function(
     String name,
     String description,
     MultipartFilePart? image,
   )
   onSubmit;
+  final Item? initialItem;
+  final ValueChanged<Item>? onSubmitted;
+  final bool popOnSubmit;
+  final String submitLabel;
+  final String title;
+  final VoidCallback? onCancel;
 
   @override
   State<AddItemSheet> createState() => _AddItemSheetState();
@@ -35,6 +51,16 @@ class _AddItemSheetState extends State<AddItemSheet> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    final item = widget.initialItem;
+    if (item != null) {
+      _nameController.text = item.name;
+      _descriptionController.text = item.description;
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || _submitting) {
       return;
@@ -44,7 +70,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
       _error = null;
     });
     try {
-      await widget.onSubmit(
+      final item = await widget.onSubmit(
         _nameController.text.trim(),
         _descriptionController.text.trim(),
         _image == null
@@ -57,7 +83,11 @@ class _AddItemSheetState extends State<AddItemSheet> {
               ),
       );
       if (mounted) {
-        Navigator.of(context).pop(true);
+        if (widget.popOnSubmit) {
+          Navigator.of(context).pop(item);
+        } else {
+          widget.onSubmitted?.call(item);
+        }
       }
     } catch (error) {
       if (mounted) {
@@ -71,7 +101,46 @@ class _AddItemSheetState extends State<AddItemSheet> {
   }
 
   Future<void> _pickImage() async {
-    final image = await _imagePicker.pickImage(source: ImageSource.gallery);
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: const Text('从相册选择'),
+                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_camera_outlined),
+                  title: const Text('拍照'),
+                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (source == null) return;
+    final image = await _imagePicker.pickImage(source: source);
     if (image != null && mounted) {
       setState(() => _image = image);
     }
@@ -94,53 +163,74 @@ class _AddItemSheetState extends State<AddItemSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    return SafeArea(
-      top: false,
-      child: AnimatedPadding(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        padding: EdgeInsets.only(bottom: bottomInset),
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          padding: const EdgeInsets.fromLTRB(24, 10, 24, 28),
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.black12,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
+                SizedBox(
+                  height: 56,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Positioned(
+                        top: 0,
+                        child: Container(
+                          width: 38,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD8D8DD),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 27,
+                        child: Text(
+                          widget.title,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: Colors.black,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                      ),
+                      Positioned(
+                        right: -9,
+                        top: 20,
+                        child: IconButton(
+                          onPressed:
+                              widget.onCancel ??
+                              () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close_rounded),
+                          iconSize: 24,
+                          color: const Color(0xFF33363D),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Text(
-                      '添加物品',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const _FieldLabel('名称 *'),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _nameController,
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(hintText: '例如：手机'),
+                  decoration: _inputDecoration(
+                    widget.initialItem == null ? '名称 *' : '手机',
+                  ),
+                  maxLength: 20,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return '请输入物品名称';
@@ -148,31 +238,49 @@ class _AddItemSheetState extends State<AddItemSheet> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 18),
-                const _FieldLabel('描述（选填）'),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _descriptionController,
                   minLines: 4,
                   maxLines: 4,
-                  decoration: const InputDecoration(hintText: '添加描述...'),
+                  maxLength: 200,
+                  decoration: _inputDecoration(
+                    widget.initialItem == null ? '描述（选填）' : '添加描述...',
+                  ),
                 ),
-                const SizedBox(height: 18),
-                const _FieldLabel('照片（选填）'),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 GestureDetector(
                   onTap: _submitting ? null : _pickImage,
-                  child: Container(
-                    width: 78,
-                    height: 78,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0F5F4),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: _image == null
-                        ? const Icon(Icons.add_photo_alternate_outlined)
-                        : Image.file(File(_image!.path), fit: BoxFit.cover),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 78,
+                        height: 78,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFBFC5CC),
+                            width: 1.2,
+                          ),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: _image == null
+                            ? _ExistingImageOrPicker(item: widget.initialItem)
+                            : Image.file(File(_image!.path), fit: BoxFit.cover),
+                      ),
+                      if (widget.initialItem == null) ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          '照片（选填）',
+                          style: TextStyle(
+                            color: Color(0xFF9CA4AE),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 if (_error != null) ...[
@@ -184,19 +292,38 @@ class _AddItemSheetState extends State<AddItemSheet> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: FilledButton.icon(
-                    onPressed: _submitting ? null : _submit,
-                    icon: _submitting
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.check_rounded),
-                    label: Text(_submitting ? '保存中' : '保存'),
+                const SizedBox(height: 28),
+                Center(
+                  child: SizedBox(
+                    width: 168,
+                    height: 49,
+                    child: FilledButton(
+                      onPressed: _submitting ? null : _submit,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF4DBDBB),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        elevation: 8,
+                        shadowColor: const Color(0x22000000),
+                      ),
+                      child: _submitting
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              widget.submitLabel,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                    ),
                   ),
                 ),
               ],
@@ -206,21 +333,56 @@ class _AddItemSheetState extends State<AddItemSheet> {
       ),
     );
   }
+
+  InputDecoration _inputDecoration(String hintText) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: const TextStyle(color: Color(0xFFB7BBC3), fontSize: 15),
+      filled: true,
+      fillColor: const Color(0xFFF0F1F6),
+      counterText: '',
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
 }
 
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text);
+class _ExistingImageOrPicker extends StatelessWidget {
+  const _ExistingImageOrPicker({required this.item});
 
-  final String text;
+  final Item? item;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        color: const Color(0xFF4A6260),
-        fontWeight: FontWeight.w600,
-      ),
+    final imageUrl = item?.bestImageUrl ?? '';
+    if (imageUrl.isEmpty) {
+      return const Icon(
+        Icons.photo_camera_outlined,
+        color: Color(0xFF4DBDBB),
+        size: 30,
+      );
+    }
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return const Icon(
+          Icons.photo_camera_outlined,
+          color: Color(0xFF4DBDBB),
+          size: 30,
+        );
+      },
     );
   }
 }

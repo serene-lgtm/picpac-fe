@@ -283,7 +283,7 @@ class _PackEmptyState extends StatelessWidget {
           right: 42,
           top: 230,
           child: SvgPicture.asset(
-            'assets/Empty-pana.svg',
+            'assets/common/empty.svg',
             height: 250,
             semanticsLabel: '空套组插画',
           ),

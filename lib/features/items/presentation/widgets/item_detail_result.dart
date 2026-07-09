@@ -1,0 +1,1 @@
+enum ItemDetailResult { updated, deleted }
