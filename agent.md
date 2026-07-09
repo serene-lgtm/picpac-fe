@@ -86,6 +86,9 @@ test/
 - 优先保持改动小而清晰，避免混入无关重构。
 - 命名应表达业务含义，不使用模糊缩写。
 - 页面组件应保持可读；复杂 UI 拆分为局部 widget。
+- 实现过程中遇到可复用 component 时，必须主动抽取到独立文件；不要把多个页面、弹层、列表 tile、表单控件和共享状态 UI 长期堆在同一个 page 文件里。
+- Page 文件应按功能和 implementation guide 的页面/流程拆分，例如列表页、搜索页、详情 bottom sheet、创建/编辑表单等应优先分文件维护。
+- 默认每个 Dart 文件最好不要超过 500 行；如果由于强耦合、临时迁移或特殊技术原因必须超过，需要在最终说明中明确原因和后续可拆分方向。
 - 业务逻辑不要堆在 `build` 方法里。
 - 重复的 API 错误处理、loading 状态、空状态和鉴权跳转应抽象复用。
 - 不提交 secrets、token、私有 API key 或本地环境配置。
@@ -117,6 +120,7 @@ test/
 - 前端视觉风格应保持扁平、艺术化、色调统一。
 - 颜色系统应有明确主色、辅助色、背景色和状态色，不使用杂乱的临时色值。
 - 视觉表达应服务于个人物品管理和出行打包场景，保持轻量、清晰、可快速操作。
+- 当 implementation guide（例如 `docs/implementation_guide/*.csv`）中提供 `Reference Image` 或 UI 图片参考路径时，必须逐张打开并参考这些图片进行实现；不能只读取 CSV 的 flow、API、Note 或 reference asset 文本。实现时需要按当前设备屏幕做等比例/响应式缩放，但组件层级、相对位置、边距、字号、圆角、图标位置、卡片长度、toast/popup/bottom sheet 形态等视觉关系必须尽量贴近参考图。
 - 从 Figma 还原 UI 时，如果读取到的组件尺寸 `width` 或 `height` 不是 4 的倍数，可以自行 round 到最接近的 4 的倍数，以保持布局网格统一。
 - 交互状态必须完整：loading、empty、error、success。
 - 表单需要基本校验和清晰错误提示。
@@ -125,6 +129,7 @@ test/
 - 当父级布局尺寸会随屏幕变化而子级使用固定宽高时，必须显式校验父子约束是否匹配；对于图标加文字、卡片网格等固定结构，优先使用 `mainAxisExtent`、`BoxConstraints`、`LayoutBuilder` 或断点策略明确尺寸关系，不要只依赖 `childAspectRatio` 等间接比例导致小屏 overflow。
 - 同一个布局数值如果同时参与父级约束计算和子级实际渲染（例如 grid item 高度计算里的图文间距，以及子组件里的 `SizedBox` 间距），必须抽取为同一个命名常量或 token，避免后续只改一处造成约束和实际 UI 脱节。
 - 新增页面或组件时，应优先复用统一 theme、spacing、typography 和 shared widgets，避免每个页面形成不同视觉语言。
+- 能根据reference image识别出同样的component，进行抽象和复用。
 
 ## 测试与验证
 
@@ -149,6 +154,8 @@ test/
 - 开始改动前先阅读相关文件，不凭空假设项目结构。
 - 涉及产品概念、页面信息架构或 API implementation 时，必须先阅读 `docs/design.md`。
 - 涉及网络请求、接口字段、HTTP 方法、错误处理或数据模型时，必须同时阅读 `docs/api.md`。
+- 按 implementation guide 实现 UI 时，必须先逐行读取对应 CSV，并解析其中的 `Image Path`、`Assets Path`、`Flow`、`Reference Image`、`Reference Asset`；随后必须打开所有存在的 reference image 做视觉对照，再进行编码。最终说明中需要明确哪些参考图已用于对齐，以及是否存在因屏幕尺寸、资源缺失或技术限制导致的偏差。
+- 按 implementation guide 实现或整改模块时，应同步规划文件边界：page 按 guide 中的页面/状态/flow 拆分，跨页面复用的 component 放入 `presentation/widgets/`，避免后续再进行大体量拆分。
 - 优先使用项目已有模式、依赖和工具链。
 - 需要新增依赖时，应说明原因和替代方案，并尽量选择维护活跃、生态成熟的包。
 - 遇到前后端契约不明确时，先给出合理假设，并在代码中隔离可变部分。

@@ -269,6 +269,33 @@ class ApiClient {
     );
   }
 
+  String resolveUrl(String url) {
+    final value = url.trim();
+    if (value.isEmpty) return '';
+    final uri = Uri.tryParse(value);
+    if (uri != null && uri.hasScheme) {
+      if (uri.scheme == 'http' && !_isLocalHost(uri.host)) {
+        return uri.replace(scheme: 'https').toString();
+      }
+      return uri.toString();
+    }
+    if (value.startsWith('//')) {
+      return '${_baseUri.scheme}:$value';
+    }
+    final firstSegment = value.split('/').first;
+    if (firstSegment.contains('.') && !value.startsWith('/')) {
+      return 'https://$value';
+    }
+    return _baseUri.resolve(value).toString();
+  }
+
+  bool _isLocalHost(String host) {
+    return host == 'localhost' ||
+        host == '127.0.0.1' ||
+        host == '0.0.0.0' ||
+        host == '::1';
+  }
+
   Map<String, dynamic> _decodeObjectBody(String body, int statusCode) {
     if (statusCode < 200 || statusCode >= 300) {
       throw ApiException(body.isEmpty ? '请求失败' : body, statusCode: statusCode);

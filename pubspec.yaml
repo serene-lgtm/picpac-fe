@@ -60,6 +60,8 @@ flutter:
 
   assets:
     - assets/
+    - assets/common/
+    - assets/pages/item/
     - assets/pages/login/
     - assets/pages/me/
     - assets/pages/pack/

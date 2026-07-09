@@ -31,4 +31,33 @@ void main() {
     expect(body, contains('Content-Type: text/plain; charset=utf-8'));
     expect(body, contains('抽纸'));
   });
+
+  test('resolveUrl normalizes image URL variants', () {
+    final client = ApiClient(baseUrl: 'http://localhost:9090/api');
+
+    expect(
+      client.resolveUrl('/uploads/item.png'),
+      'http://localhost:9090/uploads/item.png',
+    );
+    expect(
+      client.resolveUrl('uploads/item.png'),
+      'http://localhost:9090/uploads/item.png',
+    );
+    expect(
+      client.resolveUrl('//cdn.example.com/item.png'),
+      'http://cdn.example.com/item.png',
+    );
+    expect(
+      client.resolveUrl('cdn.example.com/item.png'),
+      'https://cdn.example.com/item.png',
+    );
+    expect(
+      client.resolveUrl('http://cdn.example.com/item.png'),
+      'https://cdn.example.com/item.png',
+    );
+    expect(
+      client.resolveUrl('http://localhost:9090/item.png'),
+      'http://localhost:9090/item.png',
+    );
+  });
 }

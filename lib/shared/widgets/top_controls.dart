@@ -4,10 +4,12 @@ class TopControls extends StatelessWidget {
   const TopControls({
     super.key,
     required this.onAdd,
+    this.onSearch,
     this.searchLabel = '搜索物品',
   });
 
   final VoidCallback onAdd;
+  final VoidCallback? onSearch;
   final String searchLabel;
 
   @override
@@ -17,37 +19,40 @@ class TopControls extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Container(
-              height: 56,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x33000000),
-                    blurRadius: 20,
-                    offset: Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 24),
-                  const Icon(
-                    Icons.search_rounded,
-                    color: Colors.black,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    searchLabel,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.black,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+            child: GestureDetector(
+              onTap: onSearch,
+              child: Container(
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x33000000),
+                      blurRadius: 20,
+                      offset: Offset(0, 10),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 24),
+                    const Icon(
+                      Icons.search_rounded,
+                      color: Colors.black,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      searchLabel,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.black,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

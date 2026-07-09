@@ -1,26 +1,29 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:picpac_fe/app/app.dart';
+import 'package:picpac_fe/app/theme.dart';
 import 'package:picpac_fe/core/network/api_client.dart';
 import 'package:picpac_fe/features/checklists/data/checklist.dart';
 import 'package:picpac_fe/features/checklists/data/checklist_repository.dart';
 import 'package:picpac_fe/features/items/data/item.dart';
 import 'package:picpac_fe/features/items/data/item_repository.dart';
+import 'package:picpac_fe/features/items/presentation/pages/items_page.dart';
+import 'package:picpac_fe/features/me/data/me.dart';
+import 'package:picpac_fe/features/me/data/me_repository.dart';
 import 'package:picpac_fe/features/packs/data/pack.dart';
 import 'package:picpac_fe/features/packs/data/pack_repository.dart';
 
 void main() {
   testWidgets('shows items returned by repository', (tester) async {
     await tester.pumpWidget(
-      PicpacApp(
+      _buildItemsPage(
         itemRepository: _FakeItemRepository(
           initialItems: const [Item(id: '1', name: '手机')],
         ),
-        packRepository: _FakePackRepository(),
-        checklistRepository: _FakeChecklistRepository(),
       ),
     );
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('物品'), findsAtLeastNWidgets(1));
     expect(find.text('手机'), findsOneWidget);
@@ -28,17 +31,29 @@ void main() {
 
   testWidgets('shows blank state when item list is empty', (tester) async {
     await tester.pumpWidget(
-      PicpacApp(
+      _buildItemsPage(
         itemRepository: _FakeItemRepository(initialItems: const []),
-        packRepository: _FakePackRepository(),
-        checklistRepository: _FakeChecklistRepository(),
       ),
     );
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('请添加一些物品吧！'), findsOneWidget);
   });
+}
+
+Widget _buildItemsPage({required ItemRepository itemRepository}) {
+  return MaterialApp(
+    debugShowCheckedModeBanner: false,
+    theme: PicpacTheme.light(),
+    home: ItemsPage(
+      repository: itemRepository,
+      packRepository: _FakePackRepository(),
+      checklistRepository: _FakeChecklistRepository(),
+      meRepository: _FakeMeRepository(),
+    ),
+  );
 }
 
 class _FakeItemRepository implements ItemRepository {
@@ -75,6 +90,33 @@ class _FakeItemRepository implements ItemRepository {
               item.description.toLowerCase().contains(keyword),
         )
         .toList(growable: false);
+  }
+
+  @override
+  Future<Item> getItem(String itemId) async {
+    return _items.firstWhere((item) => item.id == itemId);
+  }
+
+  @override
+  Future<Item> updateItem({
+    required String itemId,
+    required String name,
+    String? description,
+    MultipartFilePart? image,
+  }) async {
+    final index = _items.indexWhere((item) => item.id == itemId);
+    final item = Item(id: itemId, name: name, description: description ?? '');
+    if (index == -1) {
+      _items = [item, ..._items];
+    } else {
+      _items = [..._items.take(index), item, ..._items.skip(index + 1)];
+    }
+    return item;
+  }
+
+  @override
+  Future<void> deleteItem(String itemId) async {
+    _items = _items.where((item) => item.id != itemId).toList(growable: false);
   }
 }
 
@@ -219,4 +261,31 @@ class _FakeChecklistRepository implements ChecklistRepository {
 
   @override
   Future<void> deleteChecklist(String checklistId) async {}
+}
+
+class _FakeMeRepository implements MeRepository {
+  @override
+  Future<MeUser> getMe() async {
+    return const MeUser(
+      id: 'user-1',
+      profile: MeProfile(username: '测试用户'),
+    );
+  }
+
+  @override
+  Future<MeUser> updateProfile({
+    required String username,
+    required String gender,
+    String birthday = '',
+    MultipartFilePart? avatar,
+  }) async {
+    return MeUser(
+      id: 'user-1',
+      profile: MeProfile(
+        username: username,
+        gender: gender,
+        birthday: birthday,
+      ),
+    );
+  }
 }

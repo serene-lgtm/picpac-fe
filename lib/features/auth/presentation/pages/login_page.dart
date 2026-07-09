@@ -33,8 +33,13 @@ class _LoginPageState extends State<LoginPage> {
       _normalizedPhone != null && !_sendingCode && _countdownSeconds == 0;
   bool get _canSubmit =>
       _normalizedPhone != null &&
-      _codeController.text.trim().length == 6 &&
+      _isValidCode(_codeController.text) &&
       !_submitting;
+
+  bool _isValidCode(String value) {
+    final code = value.trim();
+    return code.length >= 4 && code.length <= 6;
+  }
 
   String? get _normalizedPhone {
     final digits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
@@ -102,7 +107,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _submit() async {
     final phone = _normalizedPhone;
     final code = _codeController.text.trim();
-    if (phone == null || code.length != 6 || _submitting) return;
+    if (phone == null || !_isValidCode(code) || _submitting) return;
 
     setState(() {
       _submitting = true;
@@ -241,7 +246,7 @@ class _LoginPageState extends State<LoginPage> {
                             minWidth: 64,
                             maxWidth: 64,
                           ),
-                          hintText: '17714485033',
+                          hintText: '请输入手机号',
                           hintStyle: TextStyle(
                             color: Color(0xFF26393D),
                             fontSize: 15,

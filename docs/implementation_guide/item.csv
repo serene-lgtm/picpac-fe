@@ -1,0 +1,27 @@
+Module,Item,,,,
+Image Path,assets/pages/item,,,,
+Assets Path,assets/common,,,,
+Flow,"从bottom nav bar点击物品栏会跳到item初始页或item列表页，取决于当前用户是否有可展示的item；
+点击右下角带+号的floating button，就会从底部弹出bottom sheet，即创建item页面；
+创建成功之后跳转到item详情页，即添加item成功页；
+从item详情页点击编辑跳转到编辑item页，点击删除跳转到删除item确认页；
+编辑成功跳转到item详情页，会出现“修改成功”的字样，参考创建item成功页；
+删除确认页删除成功会跳转到item初始页或item列表页，取决于当前用户是否有可展示的item，显示删除成功toast，效果参考创建item成功页；
+点击item初始页或item列表页右上角的搜索，跳转到搜索初始页，可返回列表页；
+从搜索初始页根据用户的搜索结果跳转到搜索空页或者搜索结果页，可返回列表页；",,,,
+Page Name,Reference Image,Datasource,API Endpoint,Note,Reference Asset
+item初始页（空页面）,item_blank.png,用户的items，为空,GET /api/v1/item,初始态为空，可以点击右下角的floating button添加第一个item,屏幕中心的empty提示图：empty.svg
+item列表页,Items.png,用户的items,GET /api/v1/item,"如果上传了item image，则用item image代替途中的gift box，否则gift box为default cover image；
+物品名如果过长以至item tile快要展示不下，可用省略号代替未显示部分
+",default cover image，红色的gift box: gift_box.png
+创建item,add_item.png,,POST /api/v1/item,"物品名限制最长20个中文字符，物品描述200个字符（可转换成对等的英文字符），显示进度和触达提示；
+照片可从本地相册上传，可打开相机拍摄；
+物品名称必填，描述、照片选填",
+创建item成功页,add_item_success.png,单个item,GET /api/v1/item/:item_id,成功的toast显示2s后消失,
+item详情页,get_item.png,单个item,GET /api/v1/item/:item_id,完整展示物品名，物品描述,
+编辑item,edit_item.png,单个item,"GET /api/v1/item/:item_id
+PUT /api/v1/item/:item_id",初始状态展示该物品原本信息作为placeholder,
+删除item确认页,delete_item.png,单个item,DELETE /api/v1/item/:item_id,删除成功后跳转到列表页,popup上的丢垃圾图案：trash.svg
+搜索初始页,item_search_initial.png,,,,
+搜索空页,item_search_no_result.png,items的匹配结果，为空,GET /api/v1/item?q=海边,,中心图：no_result.svg
+搜索结果页,,items的匹配结果,GET /api/v1/item?q=海边,点击任一搜索结果均可以从底部弹出item详情的bottom sheet,
