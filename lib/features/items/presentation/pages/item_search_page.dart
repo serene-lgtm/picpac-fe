@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../../shared/widgets/search_pill_field.dart';
+import '../../../../shared/widgets/search_empty_state.dart';
 import '../../data/item.dart';
 import '../../data/item_repository.dart';
 import '../widgets/item_detail_sheet.dart';
@@ -90,48 +91,14 @@ class _ItemSearchPageState extends State<ItemSearchPage> {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Container(
-                          height: 51,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: TextField(
-                            controller: _controller,
-                            autofocus: true,
-                            onChanged: _onQueryChanged,
-                            textInputAction: TextInputAction.search,
-                            decoration: InputDecoration(
-                              filled: false,
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              prefixIcon: const Icon(
-                                Icons.search_rounded,
-                                color: Color(0xFFC4C7CC),
-                              ),
-                              suffixIcon: _controller.text.isEmpty
-                                  ? null
-                                  : IconButton(
-                                      onPressed: () {
-                                        _controller.clear();
-                                        _onQueryChanged('');
-                                      },
-                                      icon: const Icon(Icons.cancel_rounded),
-                                      color: const Color(0xFFC4C7CC),
-                                      iconSize: 18,
-                                    ),
-                              hintText: '请输入关键词',
-                              hintStyle: const TextStyle(
-                                color: Color(0xFFC4C7CC),
-                                fontSize: 15,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 15,
-                              ),
-                            ),
-                          ),
+                        child: SearchPillField(
+                          controller: _controller,
+                          autofocus: true,
+                          onChanged: _onQueryChanged,
+                          onClear: () {
+                            _controller.clear();
+                            _onQueryChanged('');
+                          },
                         ),
                       ),
                     ],
@@ -169,7 +136,7 @@ class _ItemSearchPageState extends State<ItemSearchPage> {
           );
         }
         final items = snapshot.data ?? const <Item>[];
-        if (items.isEmpty) return _SearchEmptyState(query: _query);
+        if (items.isEmpty) return const SearchEmptyState();
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(24, 28, 22, 44),
           itemCount: items.length,
@@ -193,27 +160,6 @@ class _SearchInitialState extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(28, 132, 28, 120),
       children: const [SizedBox(height: 1)],
-    );
-  }
-}
-
-class _SearchEmptyState extends StatelessWidget {
-  const _SearchEmptyState({required this.query});
-
-  final String query;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(28, 166, 28, 120),
-      children: [
-        SvgPicture.asset(
-          'assets/common/no_result.svg',
-          height: 270,
-          semanticsLabel: '无搜索结果',
-        ),
-      ],
     );
   }
 }

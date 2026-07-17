@@ -15,6 +15,8 @@ import '../../data/checklist.dart';
 import '../../data/checklist_repository.dart';
 import '../../../../shared/navigation/no_animation_route.dart';
 import '../../../../shared/widgets/bottom_nav.dart';
+import '../../../../shared/widgets/module_floating_add_button.dart';
+import '../../../../shared/widgets/module_top_bar.dart';
 
 const _checklistGradientColors = [Color(0xFF71D0C6), Color(0xFFC8EFC1)];
 
@@ -167,25 +169,7 @@ class _ChecklistsPageState extends State<ChecklistsPage> {
                 );
               },
             ),
-            Positioned(
-              right: 38,
-              bottom: 78,
-              child: SizedBox.square(
-                dimension: 52,
-                child: FilledButton(
-                  onPressed: _openCreateSheet,
-                  style: FilledButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    backgroundColor: const Color(0xFFC8EFC1),
-                    foregroundColor: Colors.black,
-                    shape: const CircleBorder(),
-                    elevation: 12,
-                    shadowColor: const Color(0x44000000),
-                  ),
-                  child: const Icon(Icons.add_rounded, size: 26),
-                ),
-              ),
-            ),
+            ModuleFloatingAddButton(onPressed: _openCreateSheet),
             Align(
               alignment: Alignment.bottomCenter,
               child: SafeArea(
@@ -220,51 +204,17 @@ class _ChecklistTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 98,
-      decoration: const BoxDecoration(
+    return ModuleTopBar(
+      title: title,
+      leading: leading,
+      trailing: trailing,
+      onLeadingTap: onLeadingTap,
+      onTrailingTap: onTrailingTap,
+      background: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: _checklistGradientColors,
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (leading != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 16),
-                  child: IconButton(
-                    onPressed: onLeadingTap,
-                    icon: Icon(leading, color: Colors.black, size: 28),
-                  ),
-                ),
-              ),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.black,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            if (trailing != null)
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 28),
-                  child: IconButton(
-                    onPressed: onTrailingTap,
-                    icon: Icon(trailing, color: Colors.black, size: 26),
-                  ),
-                ),
-              ),
-          ],
         ),
       ),
     );

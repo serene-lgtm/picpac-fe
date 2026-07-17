@@ -130,6 +130,7 @@ test/
 - 同一个布局数值如果同时参与父级约束计算和子级实际渲染（例如 grid item 高度计算里的图文间距，以及子组件里的 `SizedBox` 间距），必须抽取为同一个命名常量或 token，避免后续只改一处造成约束和实际 UI 脱节。
 - 新增页面或组件时，应优先复用统一 theme、spacing、typography 和 shared widgets，避免每个页面形成不同视觉语言。
 - 能根据reference image识别出同样的component，进行抽象和复用。
+- 同一业务实体的详情入口必须在跨模块场景中复用同一个 canonical 组件或页面；例如从 Item 列表、Pack 详情、Checklist 导入预览等任意位置进入 Item 详情时，必须复用 Item module 的详情入口，不得在其他 module 里重新实现一个相似但不一致的详情 UI。若 canonical 入口缺少某个调用场景需要的回调或状态，应扩展 canonical 组件，而不是复制 UI。
 
 ## 测试与验证
 

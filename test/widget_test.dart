@@ -133,33 +133,46 @@ class _FakePackRepository implements PackRepository {
   Future<Pack> createPack({
     required String name,
     String? description,
-    String? userId,
     List<String> itemIds = const [],
   }) async {
     return Pack(
       id: 'pack-1',
       name: name,
       description: description ?? '',
-      userId: userId ?? '',
       items: itemIds,
       status: 'created',
     );
   }
 
   @override
-  Future<Pack> updatePack({
+  Future<Pack> updatePackProfile({
     required String packId,
     required String name,
     String description = '',
-    List<String> itemIds = const [],
   }) async {
     return Pack(
       id: packId,
       name: name,
       description: description,
-      items: itemIds,
+      items: const [],
       status: 'created',
     );
+  }
+
+  @override
+  Future<Pack> addPackItems({
+    required String packId,
+    required List<String> itemIds,
+  }) async {
+    return Pack(id: packId, name: '测试套组', items: itemIds, status: 'created');
+  }
+
+  @override
+  Future<Pack> removePackItems({
+    required String packId,
+    required List<String> itemIds,
+  }) async {
+    return Pack(id: packId, name: '测试套组', status: 'created');
   }
 
   @override

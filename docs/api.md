@@ -15,6 +15,11 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 - 图片存储：阿里云 OSS
 - API 风格：RESTful
 
+图片 URL 约定：
+- 接口响应中的 `avatar_url`、`source_image_url`、`image_thumbnail_url`、`ai_rendered_image_url` 是临时 signed URL，会过期。
+- 前端不应长期持久化这些 URL；如果图片访问过期，应重新请求相关列表/详情/用户接口获取新 URL。
+- 后端持久化 OSS object key，不把带 `Expires`、`OSSAccessKeyId`、`Signature` 的 URL 写入 MongoDB。
+
 ## Formal APIs
 
 ### Send Phone Code
@@ -90,7 +95,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
       "username": "user8613800138000",
       "gender": "",
       "birthday": "",
-      "avatar_url": "https://picpac.oss-cn-shanghai.aliyuncs.com/user-avatar/default.jpg"
+      "avatar_url": "https://picpac.oss-cn-shanghai.aliyuncs.com/user-avatar/default.jpg?Expires=1783588103&OSSAccessKeyId=...&Signature=..."
     },
     "status": "created"
   }
@@ -101,7 +106,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 - `400`: 缺少 `phone`、缺少 `code`、手机号格式非法、验证码非法或超过尝试次数
 - `404`: 已绑定身份对应的 User 不存在
 - `409`: 创建登录身份发生冲突且无法恢复
-- `500`: 创建 User、AuthIdentity 或 token 失败
+- `500`: 创建 User、AuthIdentity、token 或生成头像访问 URL 失败
 
 ### Refresh Auth Token
 
@@ -179,7 +184,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
     "username": "user8613800138000",
     "gender": "",
     "birthday": "",
-    "avatar_url": "https://picpac.oss-cn-shanghai.aliyuncs.com/user-avatar/default.jpg"
+    "avatar_url": "https://picpac.oss-cn-shanghai.aliyuncs.com/user-avatar/default.jpg?Expires=1783588103&OSSAccessKeyId=...&Signature=..."
   },
   "status": "created"
 }
@@ -188,7 +193,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 失败响应：
 - `401`: 缺少 access token，access token 非法或已过期
 - `404`: User 不存在
-- `500`: 查询 User 失败
+- `500`: 查询 User 或生成头像访问 URL 失败
 
 ### Update My Profile
 
@@ -196,8 +201,8 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 
 用途：
 - 更新当前登录用户的 profile
-- 后端会接收头像文件，上传到阿里云 OSS 后再把 `avatar_url` 存入 MongoDB
-- 如果不上传新的头像文件，会保留当前已有的头像 URL；首次登录创建的默认头像是 `user-avatar/default.jpg`
+- 后端会接收头像文件并上传到阿里云 OSS，MongoDB 只保存头像 object key，不保存临时 URL
+- 如果不上传新的头像文件，会保留当前已有的头像 object key；首次登录创建的默认头像 object key 是 `user-avatar/default.jpg`
 
 请求头：
 - `Authorization: Bearer <access_token>`
@@ -226,7 +231,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
     "username": "packmate_user",
     "gender": "female",
     "birthday": "1998-08-20",
-    "avatar_url": "https://cdn.example.com/avatar/u1.png"
+    "avatar_url": "https://picpac.oss-cn-shanghai.aliyuncs.com/user-avatar/user_6821c0c1f1b2f4d5a6b7c8d1.png?Expires=1783588103&OSSAccessKeyId=...&Signature=..."
   },
   "status": "created"
 }
@@ -237,7 +242,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 - `401`: 缺少 access token，access token 非法或已过期
 - `404`: User 不存在
 - `502`: 上传头像到 OSS 失败
-- `500`: 更新用户资料失败
+- `500`: 更新用户资料或生成头像访问 URL 失败
 
 ### Create Item
 
@@ -245,7 +250,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 
 用途：
 - 创建一个用户私有的 item
-- 如果上传图片，后端会先上传到阿里云 OSS，再把图片 URL 存入 MongoDB
+- 如果上传图片，后端会先上传到阿里云 OSS，MongoDB 只保存图片 object key，不保存临时 URL
 - 新创建的 item 会默认写入 `created` 状态
 - `user_id` 从当前登录用户读取，不接受前端显式传入
 
@@ -266,7 +271,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
   "user_id": "6821c0c1f1b2f4d5a6b7c8d1",
   "name": "黑色双肩包",
   "description": "日常出差用",
-  "source_image_url": "https://xxx.cos.../items/item_6821c0c1f1b2f4d5a6b7c8d9/source.jpg",
+  "source_image_url": "https://picpac.oss-cn-shanghai.aliyuncs.com/items/item_6821c0c1f1b2f4d5a6b7c8d9/source.jpg?Expires=1783588103&OSSAccessKeyId=...&Signature=...",
   "image_thumbnail_url": "",
   "ai_rendered_image_url": "",
   "status": "created"
@@ -277,7 +282,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 - `400`: 缺少 `name`，或上传文件不是有效图片
 - `401`: access token 缺失、非法或过期
 - `502`: 图片上传失败
-- `500`: 创建 item 失败
+- `500`: 创建 item 或生成图片访问 URL 失败
 
 ### List Items
 
@@ -313,7 +318,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
       "user_id": "6821c0c1f1b2f4d5a6b7c8d1",
       "name": "黑色双肩包",
       "description": "日常出差用",
-      "source_image_url": "https://xxx.cos.../items/item_6821c0c1f1b2f4d5a6b7c8d9/source.jpg",
+      "source_image_url": "https://picpac.oss-cn-shanghai.aliyuncs.com/items/item_6821c0c1f1b2f4d5a6b7c8d9/source.jpg?Expires=1783588103&OSSAccessKeyId=...&Signature=...",
       "image_thumbnail_url": "",
       "ai_rendered_image_url": "",
       "status": "created"
@@ -333,7 +338,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 失败响应：
 - `400`: `q` 为空/超过最大长度
 - `401`: access token 缺失、非法或过期
-- `500`: 查询 item 列表失败
+- `500`: 查询 item 列表或生成图片访问 URL 失败
 
 ### Get Item
 
@@ -358,7 +363,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
   "user_id": "6821c0c1f1b2f4d5a6b7c8d1",
   "name": "黑色双肩包",
   "description": "日常出差用",
-  "source_image_url": "https://xxx.cos.../items/item_6821c0c1f1b2f4d5a6b7c8d9/source.jpg",
+  "source_image_url": "https://picpac.oss-cn-shanghai.aliyuncs.com/items/item_6821c0c1f1b2f4d5a6b7c8d9/source.jpg?Expires=1783588103&OSSAccessKeyId=...&Signature=...",
   "image_thumbnail_url": "",
   "ai_rendered_image_url": "",
   "status": "created"
@@ -369,7 +374,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 - `400`: 缺少 `item_id`，或 `item_id` 不是合法 ObjectID
 - `401`: access token 缺失、非法或过期
 - `404`: item 不存在
-- `500`: 查询 item 失败
+- `500`: 查询 item 或生成图片访问 URL 失败
 
 ### Update Item
 
@@ -378,7 +383,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 用途：
 - 更新单个 item 的名称、描述和可选图片
 - 只允许更新当前登录用户自己的 item
-- 如果上传新图片，会覆盖 `source_image_url`
+- 如果上传新图片，会覆盖后端保存的 source image object key；响应里的 `source_image_url` 会返回新的临时 signed URL
 - 如果 item 已被逻辑删除，则不允许更新
 
 请求类型：
@@ -403,7 +408,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
   "user_id": "6821c0c1f1b2f4d5a6b7c8d1",
   "name": "黑色双肩包升级版",
   "description": "更新后的描述",
-  "source_image_url": "https://xxx.cos.../items/item_6821c0c1f1b2f4d5a6b7c8d9/source.png",
+  "source_image_url": "https://picpac.oss-cn-shanghai.aliyuncs.com/items/item_6821c0c1f1b2f4d5a6b7c8d9/source.png?Expires=1783588103&OSSAccessKeyId=...&Signature=...",
   "image_thumbnail_url": "",
   "ai_rendered_image_url": "",
   "status": "created"
@@ -415,7 +420,7 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 - `401`: access token 缺失、非法或过期
 - `404`: item 不存在
 - `502`: 图片上传失败
-- `500`: 更新 item 失败
+- `500`: 更新 item 或生成图片访问 URL 失败
 
 ### Delete Item
 
@@ -591,19 +596,17 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 - `404`: pack 不存在
 - `500`: 查询 pack 失败
 
-### Update Pack
+### Update Pack Profile
 
-`PUT /api/v1/pack/:pack_id`
+`PATCH /api/v1/pack/:pack_id/profile`
 
 用途：
-- 更新单个 pack 的完整可编辑字段
+- 更新单个 pack 的基本信息
 - 只允许更新当前登录用户自己的 pack
-- 前端提交更新后的 `name`、`description`、`items`
+- 只更新 `name`、`description`，不会修改 pack 内 item 列表
 - `name` 必填
 - `description` 传空字符串表示清空描述
-- `items` 传空数组表示清空 pack 内 item 列表
-- `items` 中的每个 item 都必须存在、未删除且属于当前登录用户
-- 后端会保留 `id`、`user_id`、`status`、`created_at` 等系统字段，并更新 `updated_at`
+- 后端会保留 `id`、`user_id`、`items`、`status`、`created_at` 等字段，并更新 `updated_at`
 - 如果 pack 已被逻辑删除，则不允许更新
 
 请求类型：
@@ -618,17 +621,13 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 请求字段：
 - `name`: string，必填
 - `description`: string，可选
-- `items`: string array，可选，表示更新后的完整 item id 列表
 
 请求示例：
 
 ```json
 {
   "name": "日本出差升级版",
-  "description": "东京 6 天商务行程",
-  "items": [
-    "6821c0c1f1b2f4d5a6b7c8d9"
-  ]
+  "description": "东京 6 天商务行程"
 }
 ```
 
@@ -648,9 +647,120 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 ```
 
 失败响应：
-- `400`: 缺少 `name`，`pack_id` 非法，或 `items` 中存在非法 item id
+- `400`: 缺少 `name`，或 `pack_id` 非法
+- `401`: access token 缺失、非法或过期
+- `404`: pack 不存在
+- `500`: 更新 pack 失败
+
+### Add Pack Items
+
+`POST /api/v1/pack/:pack_id/items`
+
+用途：
+- 批量添加 item 到 pack
+- 只允许更新当前登录用户自己的 pack
+- `items` 必填且不能为空
+- `items` 中的每个 item 都必须存在、未删除且属于当前登录用户
+- 已经在 pack 里的 item 会被忽略，后端会保证 pack 内 item id 不重复
+- 如果 pack 已被逻辑删除，则不允许更新
+
+请求类型：
+- `application/json`
+
+路径参数：
+- `pack_id`: string，必填，pack 主键
+
+请求头：
+- `Authorization: Bearer <access_token>`
+
+请求字段：
+- `items`: string array，必填，待添加的 item id 列表
+
+请求示例：
+
+```json
+{
+  "items": [
+    "6821c0c1f1b2f4d5a6b7c8d9",
+    "6821c0c1f1b2f4d5a6b7c8da"
+  ]
+}
+```
+
+成功响应：
+
+```json
+{
+  "id": "6821c0c1f1b2f4d5a6b7c8e0",
+  "user_id": "6821c0c1f1b2f4d5a6b7c8d1",
+  "name": "日本出差升级版",
+  "description": "东京 6 天商务行程",
+  "items": [
+    "6821c0c1f1b2f4d5a6b7c8d9",
+    "6821c0c1f1b2f4d5a6b7c8da"
+  ],
+  "status": "created"
+}
+```
+
+失败响应：
+- `400`: 缺少 `items`，`items` 为空，`pack_id` 非法，或 `items` 中存在非法 item id
 - `401`: access token 缺失、非法或过期
 - `404`: pack 不存在，或 `items` 中存在不属于当前用户、已删除或不存在的 item
+- `500`: 更新 pack 失败
+
+### Remove Pack Items
+
+`DELETE /api/v1/pack/:pack_id/items`
+
+用途：
+- 批量从 pack 删除 item
+- 只允许更新当前登录用户自己的 pack
+- `items` 必填且不能为空
+- 不在 pack 里的 item 会被忽略，重复调用结果一致
+- 如果 pack 已被逻辑删除，则不允许更新
+
+请求类型：
+- `application/json`
+
+路径参数：
+- `pack_id`: string，必填，pack 主键
+
+请求头：
+- `Authorization: Bearer <access_token>`
+
+请求字段：
+- `items`: string array，必填，待删除的 item id 列表
+
+请求示例：
+
+```json
+{
+  "items": [
+    "6821c0c1f1b2f4d5a6b7c8d9"
+  ]
+}
+```
+
+成功响应：
+
+```json
+{
+  "id": "6821c0c1f1b2f4d5a6b7c8e0",
+  "user_id": "6821c0c1f1b2f4d5a6b7c8d1",
+  "name": "日本出差升级版",
+  "description": "东京 6 天商务行程",
+  "items": [
+    "6821c0c1f1b2f4d5a6b7c8da"
+  ],
+  "status": "created"
+}
+```
+
+失败响应：
+- `400`: 缺少 `items`，`items` 为空，`pack_id` 非法，或 `items` 中存在非法 item id
+- `401`: access token 缺失、非法或过期
+- `404`: pack 不存在
 - `500`: 更新 pack 失败
 
 ### Delete Pack

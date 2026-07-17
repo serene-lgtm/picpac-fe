@@ -1,0 +1,34 @@
+Module,pack,,,,
+Image Path,assets/pages/pack,,,,
+Assets Path,assets/common,,,,
+Flow,"从bottom nav bar点击套组栏会跳到pack初始页或pack列表页，取决于当前用户是否有可展示的pack；
+从pack初始页点击右下角添加的floating button，跳转到创建pack第一步，即底部的bottom sheet弹出；
+输入好套组名点击下一步进入创建pack第二步，参考创建pack搜索相关页，选择好物品点击完成跳转到pack详情页，创建成功的toast展示2s；
+从pack详情页点击添加则跳转到创建pack第二步，但此时已经拥有的物品是勾选好的状态，并且后端调用的是update api而不是create；
+从pack详情页点击删除则每一个当前的pack呈现unselected状态，并且底部此时无添加按钮仅剩移除，勾选并点击移除会弹出delete popup，UI和动效参考item删除的页面；
+从pack详情页点击右上角...跳转到pack详情页--更多，编辑仅能修改套组名；
+从pack列表页点击搜索图标可跳转到搜索初始页，参考item module的搜索功能进行implementation；
+",,,,
+Page Name,Reference Image,Datasource,API Endpoint,Note,Reference Asset
+pack初始页（空页面）,pack_blank.png,用户的packs，为空,GET /api/v1/pack,,屏幕中心的empty提示图：empty.svg
+pack列表页,packs.png,用户的packs,GET /api/v1/pack,"每个tile单独抽取component；
+tile显示pack name, total number of items, 和一定字数的items，不够的地方画省略号；",pack tile cover ：pack_tile_cover.svg
+创建pack第一步,pack_add_step1.png,,POST /api/v1/pack,套组名不超过20个中文字符，必填，有相应的报错信息,
+创建pack第二步,pack_add_step2.png,用户的items,POST /api/v1/pack,"按照首字母顺序显示全部items；
+所有的items初始状态都是unselected，可直接选择，也可通过搜索过滤选择；
+底部banner显示已选数量；
+点击完成调用update api跳转；",
+创建pack搜索初始页,pack_add_search_initial.png,用户的packs,GET /api/v1/item?q=海边,参考component.csv中的search bar,
+创建pack搜索空结果页,pack_add_search_no_result.png,用户的packs,GET /api/v1/item?q=海边,参考component.csv中的search bar,中心图：no_result.svg
+创建pack搜索结果页,pack_add_search_results.png,用户的packs,GET /api/v1/item?q=海边,参考component.csv中的search bar,
+pack详情页（含创建成功toast）,pack_add_success.png,特定的pack,"GET /api/v1/pack/:pack_id
+POST /api/v1/pack/:pack_id/items
+DELETE /api/v1/pack/:pack_id/items","刚创建完跳转到详情页会有2s的toast展示；
+点击底部的添加会进行item的搜索，页面参考创建pack时的搜索；
+点击移除会批量删除item；",
+pack详情页--更多,pack_operation_more.png,特定的pack,"GET /api/v1/pack/:pack_id
+DELETE /api/v1/pack/:pack_id",根据选择跳转到编辑套组名或者删除，删除需要再confirm一次，popup效果参考component.csv里的删除popup，UI参考item里的删除item，可复用该组件；,
+pack编辑页--套组名,pack_edit_name.png,特定的pack,PATCH /api/v1/pack/:pack_id/profile,"初始placeholder显示原有套组名，套组名不超过20个中文字符，必填，有相应的报错信息；
+显示已输入字符/最大可输入字符；",
+pack搜索相关页,,,GET /api/v1/pack?q=东京,"分为搜索初始页，搜索空页和搜索结果页；
+UI可参考item的搜索相关页，交互效果参考component.csv中的search bar",搜索空页中心图：no_result.svg

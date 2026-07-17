@@ -9,15 +9,23 @@ abstract class PackRepository {
   Future<Pack> createPack({
     required String name,
     String? description,
-    String? userId,
     List<String> itemIds = const [],
   });
 
-  Future<Pack> updatePack({
+  Future<Pack> updatePackProfile({
     required String packId,
     required String name,
     String description = '',
-    List<String> itemIds = const [],
+  });
+
+  Future<Pack> addPackItems({
+    required String packId,
+    required List<String> itemIds,
+  });
+
+  Future<Pack> removePackItems({
+    required String packId,
+    required List<String> itemIds,
   });
 
   Future<void> deletePack(String packId);
@@ -54,7 +62,6 @@ class ApiPackRepository implements PackRepository {
   Future<Pack> createPack({
     required String name,
     String? description,
-    String? userId,
     List<String> itemIds = const [],
   }) async {
     final response = await _client.postJson(
@@ -63,30 +70,63 @@ class ApiPackRepository implements PackRepository {
         'name': name.trim(),
         if (description != null && description.trim().isNotEmpty)
           'description': description.trim(),
-        if (userId != null && userId.trim().isNotEmpty)
-          'user_id': userId.trim(),
         if (itemIds.isNotEmpty) 'items': itemIds,
       },
     );
-    return Pack.fromJson(response);
+    return _packFromResponse(response);
   }
 
   @override
-  Future<Pack> updatePack({
+  Future<Pack> updatePackProfile({
     required String packId,
     required String name,
     String description = '',
-    List<String> itemIds = const [],
   }) async {
-    final response = await _client.putJson(
-      '/api/v1/pack/$packId',
-      body: {'name': name.trim(), 'description': description, 'items': itemIds},
+    final response = await _client.patchJson(
+      '/api/v1/pack/$packId/profile',
+      body: {'name': name.trim(), 'description': description.trim()},
     );
-    return Pack.fromJson(response);
+    return _packFromResponse(response);
+  }
+
+  @override
+  Future<Pack> addPackItems({
+    required String packId,
+    required List<String> itemIds,
+  }) async {
+    final response = await _client.postJson(
+      '/api/v1/pack/$packId/items',
+      body: {'items': itemIds},
+    );
+    return _packFromResponse(response);
+  }
+
+  @override
+  Future<Pack> removePackItems({
+    required String packId,
+    required List<String> itemIds,
+  }) async {
+    final response = await _client.deleteJson(
+      '/api/v1/pack/$packId/items',
+      body: {'items': itemIds},
+    );
+    return _packFromResponse(response);
   }
 
   @override
   Future<void> deletePack(String packId) async {
     await _client.deleteJson('/api/v1/pack/$packId');
+  }
+
+  Pack _packFromResponse(Map<String, dynamic> response) {
+    final packJson = response['pack'];
+    if (packJson is Map<String, dynamic>) {
+      return Pack.fromJson(packJson);
+    }
+    final dataJson = response['data'];
+    if (dataJson is Map<String, dynamic>) {
+      return Pack.fromJson(dataJson);
+    }
+    return Pack.fromJson(response);
   }
 }
