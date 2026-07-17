@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../shared/navigation/no_animation_route.dart';
 import '../../../../shared/widgets/bottom_nav.dart';
+import '../../../../shared/widgets/module_floating_add_button.dart';
 import '../../../checklists/data/checklist_repository.dart';
 import '../../../checklists/presentation/pages/checklists_page.dart';
 import '../../../me/data/me_repository.dart';
@@ -192,90 +193,68 @@ class _ItemsPageState extends State<ItemsPage> {
               colors: [Color(0xFF48B3AF), Color(0xFFA7E399)],
             ),
           ),
-          child: SafeArea(
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    const SizedBox(height: 14),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 22),
-                      child: ItemsHeader(onSearch: _openSearch),
-                    ),
-                    const SizedBox(height: 24),
-                    Expanded(
-                      child: FutureBuilder<List<Item>>(
-                        future: _itemsFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                                  ConnectionState.waiting &&
-                              _items.isEmpty) {
-                            return const Center(
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                              ),
-                            );
-                          }
-                          if (snapshot.hasError && _items.isEmpty) {
-                            return ItemErrorState(
-                              message: snapshot.error.toString(),
-                              onRetry: _refresh,
-                            );
-                          }
-                          final items = snapshot.data ?? _items;
-                          if (items.isEmpty) {
-                            return ItemsBlank(onRefresh: _refresh);
-                          }
-                          return ItemsList(
-                            items: items,
-                            onRefresh: _refresh,
-                            onItemSelected: _openItemDetail,
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  ItemsHeader(onSearch: _openSearch),
+                  Expanded(
+                    child: FutureBuilder<List<Item>>(
+                      future: _itemsFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                                ConnectionState.waiting &&
+                            _items.isEmpty) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
                           );
-                        },
-                      ),
+                        }
+                        if (snapshot.hasError && _items.isEmpty) {
+                          return ItemErrorState(
+                            message: snapshot.error.toString(),
+                            onRetry: _refresh,
+                          );
+                        }
+                        final items = snapshot.data ?? _items;
+                        if (items.isEmpty) {
+                          return ItemsBlank(onRefresh: _refresh);
+                        }
+                        return ItemsList(
+                          items: items,
+                          onRefresh: _refresh,
+                          onItemSelected: _openItemDetail,
+                        );
+                      },
                     ),
-                  ],
-                ),
-                Align(
-                  alignment: Alignment.bottomCenter,
+                  ),
+                ],
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: SafeArea(
+                  top: false,
                   child: BottomNav(
                     currentTab: BottomTab.item,
                     onTabSelected: _handleTabSelected,
                   ),
                 ),
-                Positioned(
-                  right: 18,
-                  bottom: 92,
-                  child: SizedBox.square(
-                    dimension: 58,
-                    child: FilledButton(
-                      onPressed: _openAddItem,
-                      style: FilledButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        backgroundColor: const Color(0xFF4DBDBB),
-                        foregroundColor: Colors.white,
-                        shape: const CircleBorder(),
-                        elevation: 8,
-                        shadowColor: const Color(0x33000000),
-                      ),
-                      child: const Icon(Icons.add_rounded, size: 31),
-                    ),
+              ),
+              ModuleFloatingAddButton(onPressed: _openAddItem),
+              Positioned(
+                left: 50,
+                right: 50,
+                bottom: 90,
+                child: IgnorePointer(
+                  child: AnimatedOpacity(
+                    opacity: _showSuccessBanner ? 1 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: ItemSuccessBanner(message: _successMessage),
                   ),
                 ),
-                Positioned(
-                  left: 50,
-                  right: 50,
-                  bottom: 90,
-                  child: IgnorePointer(
-                    child: AnimatedOpacity(
-                      opacity: _showSuccessBanner ? 1 : 0,
-                      duration: const Duration(milliseconds: 180),
-                      child: ItemSuccessBanner(message: _successMessage),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

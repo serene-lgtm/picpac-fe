@@ -17,12 +17,37 @@ class Pack {
 
   factory Pack.fromJson(Map<String, dynamic> json) {
     return Pack(
-      id: json['id'] as String? ?? '',
-      userId: json['user_id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      items: (json['items'] as List?)?.whereType<String>().toList() ?? const [],
-      status: json['status'] as String? ?? '',
+      id: _stringFrom(json, const ['id', '_id']) ?? '',
+      userId: _stringFrom(json, const ['user_id', 'userId']) ?? '',
+      name: _stringFrom(json, const ['name']) ?? '',
+      description: _stringFrom(json, const ['description']) ?? '',
+      items: _stringListFrom(json['items']),
+      status: _stringFrom(json, const ['status']) ?? '',
     );
   }
+}
+
+String? _stringFrom(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is String && value.trim().isNotEmpty) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+List<String> _stringListFrom(Object? value) {
+  if (value is! List) return const [];
+  return value
+      .map((item) {
+        if (item is String) return item.trim();
+        if (item is Map<String, dynamic>) {
+          return _stringFrom(item, const ['id', '_id']);
+        }
+        return null;
+      })
+      .whereType<String>()
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
 }

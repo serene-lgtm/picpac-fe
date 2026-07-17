@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../../shared/widgets/module_top_bar.dart';
 import '../../data/item.dart';
 import 'item_shared_widgets.dart';
 
@@ -11,35 +12,10 @@ class ItemsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 42,
-      child: Row(
-        children: [
-          const SizedBox(width: 48),
-          Expanded(
-            child: Center(
-              child: Text(
-                '我的物品',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 48,
-            child: IconButton(
-              alignment: Alignment.centerRight,
-              padding: EdgeInsets.zero,
-              onPressed: onSearch,
-              icon: const Icon(Icons.search_rounded, color: Colors.black),
-              iconSize: 30,
-            ),
-          ),
-        ],
-      ),
+    return ModuleTopBar(
+      title: '我的物品',
+      trailing: Icons.search_rounded,
+      onTrailingTap: onSearch,
     );
   }
 }
@@ -98,7 +74,7 @@ class ItemsList extends StatelessWidget {
         children: [
           ListView.separated(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(24, 0, 22, 112),
+            padding: const EdgeInsets.fromLTRB(24, 24, 22, 112),
             itemCount: items.length,
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -109,10 +85,12 @@ class ItemsList extends StatelessWidget {
             },
           ),
           const Positioned(
-            top: 46,
+            top: 70,
             right: 4,
             bottom: 86,
-            child: IgnorePointer(child: AlphabetIndex()),
+            child: IgnorePointer(
+              child: FittedBox(fit: BoxFit.scaleDown, child: AlphabetIndex()),
+            ),
           ),
         ],
       ),

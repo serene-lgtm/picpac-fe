@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../shared/navigation/no_animation_route.dart';
 import '../../../../shared/widgets/bottom_nav.dart';
+import '../../../../shared/widgets/module_top_bar.dart';
 import '../../../checklists/data/checklist_repository.dart';
 import '../../../checklists/presentation/pages/checklists_page.dart';
 import '../../../items/data/item_repository.dart';
@@ -723,47 +724,16 @@ class _SimpleTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topBarHeight = _topBarHeight(context);
-    return Container(
-      height: topBarHeight,
-      decoration: const BoxDecoration(
+    return ModuleTopBar(
+      title: title,
+      leading: Icons.chevron_left_rounded,
+      onLeadingTap: () => Navigator.of(context).maybePop(),
+      foregroundColor: Colors.white,
+      background: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: _meGradientColors,
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: SizedBox(
-          height: topBarHeight - MediaQuery.paddingOf(context).top,
-          child: Row(
-            children: [
-              SizedBox(width: _contentInset(MediaQuery.sizeOf(context).width)),
-              GestureDetector(
-                onTap: () => Navigator.of(context).maybePop(),
-                child: const Icon(
-                  Icons.chevron_left_rounded,
-                  size: 32,
-                  color: Colors.white,
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: _contentInset(MediaQuery.sizeOf(context).width) + 32,
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -1403,11 +1373,6 @@ String _formatDate(DateTime date) {
 
 double _contentInset(double width) {
   return (width * 0.12).clamp(18.0, 50.0);
-}
-
-double _topBarHeight(BuildContext context) {
-  final topPadding = MediaQuery.paddingOf(context).top;
-  return (topPadding + 96).clamp(118.0, 148.0);
 }
 
 MultipartFilePart _avatarPart(XFile file) {
