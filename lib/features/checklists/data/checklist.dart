@@ -19,18 +19,18 @@ class Checklist {
 
   factory Checklist.fromJson(Map<String, dynamic> json) {
     return Checklist(
-      id: json['id'] as String? ?? '',
-      userId: json['user_id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      targetDate: json['target_date'] as String? ?? '',
+      id: _stringFrom(json, const ['id', '_id']) ?? '',
+      userId: _stringFrom(json, const ['user_id', 'userId']) ?? '',
+      name: _stringFrom(json, const ['name']) ?? '',
+      description: _stringFrom(json, const ['description']) ?? '',
+      targetDate: _stringFrom(json, const ['target_date', 'targetDate']) ?? '',
       items:
           (json['items'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .map(ChecklistLineItem.fromJson)
               .toList(growable: false) ??
           const [],
-      status: json['status'] as String? ?? '',
+      status: _stringFrom(json, const ['status']) ?? '',
     );
   }
 }
@@ -55,13 +55,15 @@ class ChecklistLineItem {
   factory ChecklistLineItem.fromJson(Map<String, dynamic> json) {
     final snapshot = json['snapshot'];
     return ChecklistLineItem(
-      id: json['id'] as String? ?? '',
-      referenceType: json['reference_type'] as String? ?? '',
-      referenceId: json['reference_id'] as String? ?? '',
+      id: _stringFrom(json, const ['id', '_id']) ?? '',
+      referenceType:
+          _stringFrom(json, const ['reference_type', 'referenceType']) ?? '',
+      referenceId:
+          _stringFrom(json, const ['reference_id', 'referenceId']) ?? '',
       snapshotName: snapshot is Map<String, dynamic>
-          ? snapshot['name'] as String? ?? ''
+          ? _stringFrom(snapshot, const ['name']) ?? ''
           : '',
-      status: json['status'] as String? ?? 'unchecked',
+      status: _stringFrom(json, const ['status']) ?? 'unchecked',
     );
   }
 }
@@ -89,4 +91,12 @@ class ChecklistItemInput {
       'snapshot': {'name': snapshotName},
     };
   }
+}
+
+String? _stringFrom(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is String && value.trim().isNotEmpty) return value.trim();
+  }
+  return null;
 }

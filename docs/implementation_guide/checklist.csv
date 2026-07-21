@@ -1,0 +1,27 @@
+Module,checklist,,,,
+Image Path,assets/pages/checklist,,,,
+Assets Path,assets/common,,,,
+Flow,"从bottom nav bar点击套组栏会跳到checklist初始页或checklist列表页，取决于当前用户是否有可展示的checklist；
+点击右下角floating button进入创建checklist -- 基本信息，基本信息页会验证并报错，完成点击下一步进入创建checklist -- 从物品导入；
+物品导入和套组导入可通过顶部的tab自由切换，创建成功后跳转到详情页；
+点击添加或者删除参考pack详情页的做法；
+详情页右上角点击更多会弹出底部按钮选项参考checklist详情页 -- 更多；
+从更多点击编辑，参考pack详情页 -- 更多 -- 编辑的做法，只可编辑基本信息，不包含物品信息；
+从更多点击删除，弹出component.csv中的delete popup；",,,,
+Page Name,Reference Image,Datasource,API Endpoint,Note,Reference Asset
+checklist初始页（空页面）,checklist_blank.png,用户的checklist，为空,GET /api/v1/checklist,,屏幕中心的empty提示图：empty.svg
+checklist列表页,checklists.png,用户的checklists,GET /api/v1/checklist,最右边的loading circle是按照已经checkdone的item所占比例进行绘制的，全部checkdone则是一个check mark,checklist_tile_cover.png
+创建checklist -- 基本信息,add_checklist_step1.png,,POST /api/v1/checklist,输入的名称最多20字符，描述最多200字符，显示已输入/最大可输入；,
+创建checklist -- 从物品导入,add_checklist_step2_item.png,用户的items,GET /api/v1/item,"上面的tab可选是从物品导入还是从套组导入；
+所有的item一开始都是unselected状态，搜索的交互效果参考创建pack时导入item；
+最下面显示的已选中的物品个数是包含套组内物品且去重的结果。以item id为handle；",
+创建checklist -- 从套组导入,add_checklist_step2_pack.png,用户的packs,GET /api/v1/pack,"所有的item一开始都是unselected状态，搜索的交互效果与pack module中的搜索pack类似，pack可展开看见内含的item；
+比较重要的一点是如果某item在item tab被选中过，则在pack中展开时是selected的状态，反之亦然；
+如果该pack内的所有item都selected，则pack前面的check mark是勾选上的；
+pack tile前的勾选可以一键全选/一键全不选；",
+创建checklist -- 展开套组,add_checklist_step2_pack_expand.png,用户的packs,"GET /api/v1/pack
+GET /api/v1/pack/:pack_id",点击pack tile右侧的小箭头可展开看到所有所含item；,
+checklist详情页,checklists_detail.png,用户的checklist,GET /api/v1/checklist/:checklist_id,"如果是创建成功跳转到该页面，则屏幕中央的toast显示2s，如果是从列表页过来则不显示toast；
+所有的item都是default unchecked的状态，一旦勾选则被checked且划线变灰，移至最底部；
+点击底部的添加或者移除参考pack详情页的动效；",
+checklist详情页 -- 更多,checklists_detail_more.png,用户的checklist,GET /api/v1/checklist/:checklist_id,点击编辑只会弹出基本信息的bottom sheet，不涉及物品的增删；,

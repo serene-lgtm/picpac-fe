@@ -64,7 +64,7 @@ class ApiChecklistRepository implements ChecklistRepository {
   @override
   Future<Checklist> getChecklist(String checklistId) async {
     final response = await _client.getJson('/api/v1/checklist/$checklistId');
-    return Checklist.fromJson(response);
+    return _checklistFromResponse(response);
   }
 
   @override
@@ -87,7 +87,7 @@ class ApiChecklistRepository implements ChecklistRepository {
           'items': items.map((item) => item.toJson()).toList(growable: false),
       },
     );
-    return Checklist.fromJson(response);
+    return _checklistFromResponse(response);
   }
 
   @override
@@ -105,7 +105,7 @@ class ApiChecklistRepository implements ChecklistRepository {
         'description': description.trim(),
       },
     );
-    return Checklist.fromJson(response);
+    return _checklistFromResponse(response);
   }
 
   @override
@@ -119,7 +119,7 @@ class ApiChecklistRepository implements ChecklistRepository {
         'items': items.map((item) => item.toJson()).toList(growable: false),
       },
     );
-    return Checklist.fromJson(response);
+    return _checklistFromResponse(response);
   }
 
   @override
@@ -131,7 +131,7 @@ class ApiChecklistRepository implements ChecklistRepository {
       '/api/v1/checklist/$checklistId/items',
       body: {'line_item_ids': lineItemIds},
     );
-    return Checklist.fromJson(response);
+    return _checklistFromResponse(response);
   }
 
   @override
@@ -150,5 +150,17 @@ class ApiChecklistRepository implements ChecklistRepository {
   @override
   Future<void> deleteChecklist(String checklistId) async {
     await _client.deleteJson('/api/v1/checklist/$checklistId');
+  }
+
+  Checklist _checklistFromResponse(Map<String, dynamic> response) {
+    final checklistJson = response['checklist'];
+    if (checklistJson is Map<String, dynamic>) {
+      return Checklist.fromJson(checklistJson);
+    }
+    final dataJson = response['data'];
+    if (dataJson is Map<String, dynamic>) {
+      return Checklist.fromJson(dataJson);
+    }
+    return Checklist.fromJson(response);
   }
 }
