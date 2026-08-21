@@ -1,9 +1,15 @@
 class MeUser {
-  const MeUser({required this.id, required this.profile, this.status = ''});
+  const MeUser({
+    required this.id,
+    required this.profile,
+    this.status = '',
+    this.phone = '',
+  });
 
   final String id;
   final MeProfile profile;
   final String status;
+  final String phone;
 
   factory MeUser.fromJson(Map<String, dynamic> json) {
     final profileJson = json['profile'];
@@ -13,6 +19,11 @@ class MeUser {
           ? MeProfile.fromJson(profileJson)
           : const MeProfile(),
       status: json['status'] as String? ?? '',
+      phone:
+          json['phone'] as String? ??
+          json['phone_number'] as String? ??
+          json['mobile'] as String? ??
+          '',
     );
   }
 
@@ -21,6 +32,7 @@ class MeUser {
       'id': id,
       'profile': profile.toJson(),
       'status': status,
+      'phone': phone,
     };
   }
 }

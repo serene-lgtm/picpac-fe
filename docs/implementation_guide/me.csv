@@ -1,0 +1,18 @@
+Module,item,,,,
+Image Path,assets/pages/me,,,,
+Assets Path,assets/common,,,,
+Flow,"从bottom nav bar点击最右边的我的icon个人中心页；
+从个人中心页点击编辑资料进入个人资料页；
+从个人中心页右上角设置icon可跳转到设置页面；
+设置页面点击清除缓存/退出登录/账号安全进入相应的页面；",,,,
+Page Name,Reference Image,Datasource,API Endpoint,Note,Reference Asset
+个人中心页,me.png,用户的item/pack/checklist数量,"GET /api/v1/item
+GET /api/v1/pack
+GET /api/v1/checklist",显示user_[手机号]作为默认用户名，和当前该用户所拥有的物品/套组/清单的真实数量；,me_cover.png
+个人资料页（可编辑）,personal_info.png,用户的profile,"GET /api/v1/me
+PUT /api/v1/me/profile","没有用户名的话显示user_[手机号]作为默认用户名，使用default_avatar.png作为默认头像；
+修改成功后显示toast“修改成功”在屏幕中央2s，参考任意别处的toast；",default_avatar.png
+设置页面,setting.png,,,,
+设置页面--清除缓存,setting_clean_cache.png,该app当前所占缓存,,如果可以的话，请在popup中显示一下当前所占缓存；,cache.png
+设置页面--退出登录,setting_logout.png,,POST /api/v1/auth/logout,,leave.png
+账号安全,setting_account.png,,GET /api/v1/me,暂时先不接入设置密码的api,
