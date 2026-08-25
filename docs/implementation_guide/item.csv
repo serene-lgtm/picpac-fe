@@ -12,8 +12,9 @@ Flow,"从bottom nav bar点击物品栏会跳到item初始页或item列表页，�
 Page Name,Reference Image,Datasource,API Endpoint,Note,Reference Asset
 item初始页（空页面）,item_blank.png,用户的items，为空,GET /api/v1/item,初始态为空，可以点击右下角的floating button添加第一个item,屏幕中心的empty提示图：empty.svg
 item列表页,Items.png,用户的items,GET /api/v1/item,"如果上传了item image，则用item image代替途中的gift box，否则gift box为default cover image；
-物品名如果过长以至item tile快要展示不下，可用省略号代替未显示部分
-",default cover image，红色的gift box: gift_box.png
+物品名如果过长以至item tile快要展示不下，可用省略号代替未显示部分；
+初始页面显示全部items，如果点击某个tab则按当前category过滤，再点击相同的tab取消过滤；
+如果当前有选中的tab，此时再点击另一个tab，则切换过滤category；",default cover image，红色的gift box: gift_box.png
 创建item,add_item.png,,POST /api/v1/item,"物品名限制最长20个中文字符，物品描述200个字符（可转换成对等的英文字符），显示进度和触达提示；
 照片可从本地相册上传，可打开相机拍摄；
 物品名称必填，描述、照片选填",

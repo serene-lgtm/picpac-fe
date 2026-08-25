@@ -189,12 +189,12 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             Positioned(
-              right: -27,
-              top: 45,
+              right: -20,
+              top: 32,
               child: Image.asset(
-                'assets/pages/login/login_cover.png',
-                width: 280,
-                height: 239,
+                'assets/common/me_cover.png',
+                width: 296,
+                height: 296,
                 fit: BoxFit.contain,
               ),
             ),
@@ -231,6 +231,8 @@ class _LoginPageState extends State<LoginPage> {
                         ],
                         onChanged: (_) => setState(() {}),
                         decoration: const InputDecoration(
+                          filled: true,
+                          fillColor: Colors.transparent,
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
@@ -273,6 +275,8 @@ class _LoginPageState extends State<LoginPage> {
                               ],
                               onChanged: (_) => setState(() {}),
                               decoration: const InputDecoration(
+                                filled: true,
+                                fillColor: Colors.transparent,
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,

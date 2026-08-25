@@ -12,6 +12,7 @@ class AddItemSheet extends StatefulWidget {
     required this.onSubmit,
     this.initialItem,
     this.onSubmitted,
+    this.categories = const [],
     this.popOnSubmit = true,
     this.submitLabel = '保存',
     this.title = '添加物品',
@@ -20,12 +21,14 @@ class AddItemSheet extends StatefulWidget {
 
   final Future<Item> Function(
     String name,
+    String categoryId,
     String description,
     MultipartFilePart? image,
   )
   onSubmit;
   final Item? initialItem;
   final ValueChanged<Item>? onSubmitted;
+  final List<ItemCategory> categories;
   final bool popOnSubmit;
   final String submitLabel;
   final String title;
@@ -41,6 +44,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
   final _descriptionController = TextEditingController();
   final _imagePicker = ImagePicker();
   XFile? _image;
+  String? _selectedCategoryId;
   bool _submitting = false;
   String? _error;
 
@@ -51,6 +55,13 @@ class _AddItemSheetState extends State<AddItemSheet> {
     super.dispose();
   }
 
+  String get _selectedCategoryLabel {
+    for (final category in _categoryOptions) {
+      if (category.id == _selectedCategoryId) return category.name;
+    }
+    return '';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +69,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
     if (item != null) {
       _nameController.text = item.name;
       _descriptionController.text = item.description;
+      _selectedCategoryId = item.categoryId.isNotEmpty ? item.categoryId : null;
     }
   }
 
@@ -72,6 +84,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
     try {
       final item = await widget.onSubmit(
         _nameController.text.trim(),
+        _selectedCategoryId ?? '',
         _descriptionController.text.trim(),
         _image == null
             ? null
@@ -160,9 +173,28 @@ class _AddItemSheetState extends State<AddItemSheet> {
     return 'image/jpeg';
   }
 
+  List<ItemCategory> get _categoryOptions {
+    final options = [...widget.categories];
+    final item = widget.initialItem;
+    if (item != null &&
+        item.categoryId.isNotEmpty &&
+        item.categoryName.isNotEmpty &&
+        !options.any((category) => category.id == item.categoryId)) {
+      options.add(
+        ItemCategory(
+          id: item.categoryId,
+          key: item.categoryKey,
+          name: item.categoryName,
+        ),
+      );
+    }
+    return options;
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final categoryOptions = _categoryOptions;
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
@@ -236,6 +268,30 @@ class _AddItemSheetState extends State<AddItemSheet> {
                       return '请输入物品名称';
                     }
                     return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                FormField<String>(
+                  initialValue: _selectedCategoryId,
+                  validator: (_) {
+                    final value = _selectedCategoryId;
+                    if (value == null || value.trim().isEmpty) {
+                      return '请选择分类';
+                    }
+                    return null;
+                  },
+                  builder: (field) {
+                    return _CategoryPickerField(
+                      label: _selectedCategoryLabel,
+                      hintText: '分类 *',
+                      categories: categoryOptions,
+                      enabled: !_submitting,
+                      errorText: field.errorText,
+                      onChanged: (category) {
+                        setState(() => _selectedCategoryId = category.id);
+                        field.didChange(category.id);
+                      },
+                    );
                   },
                 ),
                 const SizedBox(height: 12),
@@ -383,6 +439,278 @@ class _ExistingImageOrPicker extends StatelessWidget {
           size: 30,
         );
       },
+    );
+  }
+}
+
+class _CategoryPickerField extends StatefulWidget {
+  const _CategoryPickerField({
+    required this.label,
+    required this.hintText,
+    required this.categories,
+    required this.enabled,
+    required this.onChanged,
+    this.errorText,
+  });
+
+  final String label;
+  final String hintText;
+  final List<ItemCategory> categories;
+  final bool enabled;
+  final ValueChanged<ItemCategory> onChanged;
+  final String? errorText;
+
+  @override
+  State<_CategoryPickerField> createState() => _CategoryPickerFieldState();
+}
+
+class _CategoryPickerFieldState extends State<_CategoryPickerField> {
+  final _layerLink = LayerLink();
+  final _searchController = TextEditingController();
+  OverlayEntry? _overlayEntry;
+
+  @override
+  void dispose() {
+    _hideOverlay();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _toggleOverlay() {
+    if (!widget.enabled) return;
+    if (_overlayEntry == null) {
+      _showOverlay();
+    } else {
+      _hideOverlay();
+    }
+  }
+
+  void _showOverlay() {
+    final renderBox = context.findRenderObject() as RenderBox?;
+    final size = renderBox?.size ?? const Size(0, 52);
+    _searchController.clear();
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setOverlayState) {
+            final query = _searchController.text.trim().toLowerCase();
+            final categories = query.isEmpty
+                ? widget.categories
+                : widget.categories
+                      .where(
+                        (category) =>
+                            category.name.toLowerCase().contains(query) ||
+                            category.key.toLowerCase().contains(query),
+                      )
+                      .toList(growable: false);
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: _hideOverlay,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+                CompositedTransformFollower(
+                  link: _layerLink,
+                  showWhenUnlinked: false,
+                  offset: Offset(0, size.height + 6),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: SizedBox(
+                      width: size.width,
+                      child: _CategoryPickerMenu(
+                        searchController: _searchController,
+                        categories: categories,
+                        onSearchChanged: (_) => setOverlayState(() {}),
+                        onSelected: (category) {
+                          widget.onChanged(category);
+                          _hideOverlay();
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    Overlay.of(context).insert(_overlayEntry!);
+    setState(() {});
+  }
+
+  void _hideOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasValue = widget.label.trim().isNotEmpty;
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: _toggleOverlay,
+            child: Container(
+              height: 52,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F1F6),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      hasValue ? widget.label : widget.hintText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: hasValue
+                            ? const Color(0xFF26393D)
+                            : const Color(0xFFB7BBC3),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    _overlayEntry == null
+                        ? Icons.keyboard_arrow_down_rounded
+                        : Icons.keyboard_arrow_up_rounded,
+                    color: const Color(0xFFB7BBC3),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (widget.errorText != null) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: Text(
+                widget.errorText!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryPickerMenu extends StatelessWidget {
+  const _CategoryPickerMenu({
+    required this.searchController,
+    required this.categories,
+    required this.onSearchChanged,
+    required this.onSelected,
+  });
+
+  final TextEditingController searchController;
+  final List<ItemCategory> categories;
+  final ValueChanged<String> onSearchChanged;
+  final ValueChanged<ItemCategory> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 286),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE1E4EA)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x26000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+            child: SizedBox(
+              height: 40,
+              child: TextField(
+                controller: searchController,
+                autofocus: true,
+                onChanged: onSearchChanged,
+                decoration: InputDecoration(
+                  hintText: '搜索分类',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFFB7BBC3),
+                    fontSize: 14,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: Color(0xFFAEB5BE),
+                    size: 20,
+                  ),
+                  prefixIconConstraints: const BoxConstraints(minWidth: 38),
+                  filled: true,
+                  fillColor: const Color(0xFFF0F1F6),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(999),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Flexible(
+            child: categories.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 28),
+                    child: Text(
+                      '没有匹配分类',
+                      style: TextStyle(color: Color(0xFF9CA4AE)),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    shrinkWrap: true,
+                    itemCount: categories.length,
+                    itemBuilder: (context, index) {
+                      final category = categories[index];
+                      return InkWell(
+                        onTap: () => onSelected(category),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 13,
+                          ),
+                          child: Text(
+                            category.name,
+                            style: const TextStyle(
+                              color: Color(0xFF26393D),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

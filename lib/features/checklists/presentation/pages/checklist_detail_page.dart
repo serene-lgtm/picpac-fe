@@ -66,14 +66,40 @@ class _ChecklistDetailPageState extends State<ChecklistDetailPage> {
     final checklist = await widget.checklistRepository.getChecklist(
       widget.checklist.id,
     );
-    final items = await widget.itemRepository.listItems();
+    final itemsById = await _loadItemsById(checklist);
     if (mounted) {
       setState(() {
         _checklist = checklist;
-        _itemsById = {for (final item in items) item.id: item};
+        _itemsById = itemsById;
       });
     }
     return checklist;
+  }
+
+  Future<Map<String, Item>> _loadItemsById([Checklist? checklist]) async {
+    final items = await widget.itemRepository.listItems();
+    final itemsById = {for (final item in items) item.id: item};
+    final source = checklist ?? _checklist;
+    final missingIds = source.items
+        .where((line) => line.referenceType == 'item')
+        .map((line) => line.referenceId)
+        .where((id) => id.isNotEmpty && !itemsById.containsKey(id))
+        .toSet();
+    if (missingIds.isEmpty) return itemsById;
+
+    final fetchedItems = await Future.wait(
+      missingIds.map((id) async {
+        try {
+          return await widget.itemRepository.getItem(id);
+        } catch (_) {
+          return null;
+        }
+      }),
+    );
+    for (final item in fetchedItems.whereType<Item>()) {
+      itemsById[item.id] = item;
+    }
+    return itemsById;
   }
 
   void _showSuccess([String message = '添加成功']) {
@@ -102,9 +128,15 @@ class _ChecklistDetailPageState extends State<ChecklistDetailPage> {
         _checklistFuture = Future.value(updated);
         _updatingIds.remove(line.id);
       });
+      unawaited(_refreshItemsById());
     } finally {
       if (mounted) setState(() => _updatingIds.remove(line.id));
     }
+  }
+
+  Future<void> _refreshItemsById() async {
+    final itemsById = await _loadItemsById();
+    if (mounted) setState(() => _itemsById = itemsById);
   }
 
   void _toggleRemoveLine(ChecklistLineItem line) {
@@ -179,9 +211,12 @@ class _ChecklistDetailPageState extends State<ChecklistDetailPage> {
       ),
     );
     if (result == null || !mounted) return;
+    final itemsById = await _loadItemsById();
+    if (!mounted) return;
     setState(() {
       _checklist = result;
       _checklistFuture = Future.value(result);
+      _itemsById = itemsById;
     });
     _showSuccess();
   }

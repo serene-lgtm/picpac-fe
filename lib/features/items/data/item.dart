@@ -1,8 +1,27 @@
+class ItemCategory {
+  const ItemCategory({required this.id, required this.key, required this.name});
+
+  final String id;
+  final String key;
+  final String name;
+
+  factory ItemCategory.fromJson(Map<String, dynamic> json) {
+    return ItemCategory(
+      id: _stringFrom(json, const ['id', '_id']) ?? '',
+      key: _stringFrom(json, const ['key']) ?? '',
+      name: _stringFrom(json, const ['name']) ?? '',
+    );
+  }
+}
+
 class Item {
   const Item({
     required this.id,
     required this.name,
     this.userId = '',
+    this.categoryId = '',
+    this.categoryKey = '',
+    this.categoryName = '',
     this.description = '',
     this.sourceImageUrl = '',
     this.imageThumbnailUrl = '',
@@ -12,6 +31,9 @@ class Item {
 
   final String id;
   final String userId;
+  final String categoryId;
+  final String categoryKey;
+  final String categoryName;
   final String name;
   final String description;
   final String sourceImageUrl;
@@ -38,6 +60,9 @@ class Item {
     return Item(
       id: id,
       userId: userId,
+      categoryId: categoryId,
+      categoryKey: categoryKey,
+      categoryName: categoryName,
       name: name,
       description: description,
       sourceImageUrl: normalize(sourceImageUrl),
@@ -56,6 +81,11 @@ class Item {
     return Item(
       id: _stringFrom(json, const ['id', '_id']) ?? '',
       userId: _stringFrom(json, const ['user_id', 'userId']) ?? '',
+      categoryId: _stringFrom(json, const ['category_id', 'categoryId']) ?? '',
+      categoryKey:
+          _stringFrom(json, const ['category_key', 'categoryKey']) ?? '',
+      categoryName:
+          _stringFrom(json, const ['category_name', 'categoryName']) ?? '',
       name: _stringFrom(json, const ['name']) ?? '',
       description: _stringFrom(json, const ['description']) ?? '',
       sourceImageUrl:

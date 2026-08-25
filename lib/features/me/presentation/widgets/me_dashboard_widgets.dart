@@ -23,18 +23,21 @@ class MeDashboardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final safeTop = MediaQuery.paddingOf(context).top;
     final width = MediaQuery.sizeOf(context).width;
-    final heroHeight = (width * 0.8).clamp(280.0, 340.0);
+    final inset = meContentInset(width);
+    final heroHeight = (width * 0.78).clamp(300.0, 336.0);
     return SizedBox(
       height: heroHeight,
       child: Stack(
         children: [
           Positioned(
-            top: safeTop + 0,
+            top: 0,
+            left: 0,
             right: 0,
             height: heroHeight,
             child: Image.asset(
               'assets/common/me_cover.png',
-              fit: BoxFit.contain,
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
             ),
           ),
           Positioned(
@@ -49,16 +52,16 @@ class MeDashboardHeader extends StatelessWidget {
                 onPressed: onSettingsTap,
                 icon: const Icon(
                   Icons.settings_outlined,
-                  color: Colors.black,
+                  color: Colors.white,
                   size: moduleTopBarIconSize,
                 ),
               ),
             ),
           ),
           Positioned(
-            left: 4,
-            bottom: 16,
-            width: (width * 0.56).clamp(226.0, 300.0),
+            left: inset,
+            bottom: 12,
+            width: (width * 0.52).clamp(198.0, 256.0),
             child: _MeProfileGlassTile(user: user, onTap: onProfileTap),
           ),
         ],
@@ -75,25 +78,24 @@ class _MeProfileGlassTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const avatarSize = 70.0;
-    const overlap = 34.0;
+    const avatarSize = 80.0;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(48),
       child: SizedBox(
-        height: 86,
+        height: 80,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
             Positioned.fill(
-              left: overlap,
+              left: 0,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(48),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
                   child: Container(
                     padding: const EdgeInsets.fromLTRB(
-                      avatarSize - overlap + 12,
+                      avatarSize + 12,
                       8,
                       12,
                       8,
@@ -112,8 +114,6 @@ class _MeProfileGlassTile extends StatelessWidget {
               ),
             ),
             Positioned(
-              left: 0,
-              top: 8,
               child: MeAvatar(
                 avatarUrl: user.profile.avatarUrl,
                 size: avatarSize,

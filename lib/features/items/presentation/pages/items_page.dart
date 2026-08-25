@@ -41,7 +41,10 @@ class ItemsPage extends StatefulWidget {
 
 class _ItemsPageState extends State<ItemsPage> {
   late Future<List<Item>> _itemsFuture;
+  List<Item> _allItems = const [];
   List<Item> _items = const [];
+  List<ItemCategory> _categories = const [];
+  String? _selectedCategoryId;
   Timer? _successTimer;
   bool _showSuccessBanner = false;
   String _successMessage = '添加成功';
@@ -50,12 +53,28 @@ class _ItemsPageState extends State<ItemsPage> {
   void initState() {
     super.initState();
     _itemsFuture = _loadItems();
+    unawaited(_loadCategories());
   }
 
   Future<List<Item>> _loadItems() async {
     final items = await widget.repository.listItems();
-    _items = items;
-    return items;
+    final filteredItems = _filterItemsByCategory(items, _selectedCategoryId);
+    _allItems = items;
+    _items = filteredItems;
+    return filteredItems;
+  }
+
+  Future<void> _loadCategories() async {
+    final List<ItemCategory> categories;
+    try {
+      categories = await widget.repository.listCategories();
+    } catch (_) {
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _categories = categories;
+    });
   }
 
   Future<void> _refresh() async {
@@ -67,6 +86,11 @@ class _ItemsPageState extends State<ItemsPage> {
   }
 
   Future<void> _openAddItem() async {
+    if (_categories.isEmpty) {
+      final categories = await widget.repository.listCategories();
+      if (!mounted) return;
+      setState(() => _categories = categories);
+    }
     final created = await showModalBottomSheet<Item>(
       context: context,
       isScrollControlled: true,
@@ -74,9 +98,11 @@ class _ItemsPageState extends State<ItemsPage> {
       barrierColor: Colors.black.withValues(alpha: 0.46),
       builder: (context) {
         return AddItemSheet(
-          onSubmit: (name, description, image) {
+          categories: _categories,
+          onSubmit: (name, categoryId, description, image) {
             return widget.repository.createItem(
               name: name,
+              categoryId: categoryId,
               description: description,
               image: image,
             );
@@ -95,6 +121,7 @@ class _ItemsPageState extends State<ItemsPage> {
       context: context,
       item: item,
       itemRepository: widget.repository,
+      categories: _categories,
       initialSuccessMessage: successMessage,
     );
     await _handleDetailResult(result);
@@ -117,6 +144,39 @@ class _ItemsPageState extends State<ItemsPage> {
     } else if (result == ItemDetailResult.updated) {
       await _refresh();
     }
+  }
+
+  void _handleCategorySelected(String? categoryId) {
+    if (categoryId == _selectedCategoryId) return;
+    final filteredItems = _filterItemsByCategory(_allItems, categoryId);
+    setState(() {
+      _selectedCategoryId = categoryId;
+      _items = filteredItems;
+      _itemsFuture = Future.value(filteredItems);
+    });
+  }
+
+  List<Item> _filterItemsByCategory(List<Item> items, String? categoryId) {
+    if (categoryId == null || categoryId.isEmpty) return items;
+    final category = _categories.where((category) => category.id == categoryId);
+    if (category.isEmpty) return items;
+    final selectedCategory = category.first;
+    return items
+        .where((item) => _itemMatchesCategory(item, selectedCategory))
+        .toList(growable: false);
+  }
+
+  bool _itemMatchesCategory(Item item, ItemCategory category) {
+    if (item.categoryId.isNotEmpty && item.categoryId == category.id) {
+      return true;
+    }
+    if (item.categoryKey.isNotEmpty && category.key.isNotEmpty) {
+      if (item.categoryKey == category.key) return true;
+    }
+    if (item.categoryName.isNotEmpty && category.name.isNotEmpty) {
+      return item.categoryName == category.name;
+    }
+    return false;
   }
 
   void _showSuccess(String message) {
@@ -198,6 +258,11 @@ class _ItemsPageState extends State<ItemsPage> {
               Column(
                 children: [
                   ItemsHeader(onSearch: _openSearch),
+                  ItemCategoryTabs(
+                    categories: _categories,
+                    selectedCategoryId: _selectedCategoryId,
+                    onSelected: _handleCategorySelected,
+                  ),
                   Expanded(
                     child: FutureBuilder<List<Item>>(
                       future: _itemsFuture,

@@ -290,6 +290,7 @@ class _PackDetailPageState extends State<PackDetailPage> {
                                 (item) => Padding(
                                   padding: const EdgeInsets.only(bottom: 14),
                                   child: _PackDetailItemCard(
+                                    item: item,
                                     name: item.name,
                                     description: item.description,
                                     onTap: () => _openItemDetail(item),

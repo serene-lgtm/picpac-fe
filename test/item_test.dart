@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:picpac_fe/features/checklists/data/checklist.dart';
 import 'package:picpac_fe/features/items/data/item.dart';
 
 void main() {
@@ -66,5 +67,22 @@ void main() {
     });
 
     expect(item.bestImageUrl, '/uploads/items/item-1.png');
+  });
+
+  test('checklist line reads item id aliases and snapshot name aliases', () {
+    final itemLine = ChecklistLineItem.fromJson({
+      'id': 'line-1',
+      'reference_type': 'Item',
+      'item_id': {r'$oid': 'item-1'},
+    });
+    final snapshotLine = ChecklistLineItem.fromJson({
+      'id': 'line-2',
+      'reference_type': 'snapshot',
+      'snapshot_name': '临时雨伞',
+    });
+
+    expect(itemLine.referenceId, 'item-1');
+    expect(itemLine.referenceType, 'item');
+    expect(snapshotLine.snapshotName, '临时雨伞');
   });
 }

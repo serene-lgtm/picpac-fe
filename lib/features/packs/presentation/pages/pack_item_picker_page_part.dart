@@ -23,6 +23,8 @@ class PackItemPickerPage extends StatefulWidget {
 class _PackItemPickerPageState extends State<PackItemPickerPage> {
   final _searchController = TextEditingController();
   late Future<List<Item>> _itemsFuture;
+  List<ItemCategory> _categories = const [];
+  String? _selectedCategoryId;
   final Set<String> _selectedItemIds = {};
   final Map<String, Item> _knownItemsById = {};
   Timer? _searchTimer;
@@ -37,6 +39,7 @@ class _PackItemPickerPageState extends State<PackItemPickerPage> {
       _knownItemsById[item.id] = item;
     }
     _itemsFuture = widget.itemRepository.listItems();
+    unawaited(_loadCategories());
   }
 
   @override
@@ -54,6 +57,45 @@ class _PackItemPickerPageState extends State<PackItemPickerPage> {
         _itemsFuture = widget.itemRepository.listItems(q: q.isEmpty ? null : q);
       });
     });
+  }
+
+  Future<void> _loadCategories() async {
+    final List<ItemCategory> categories;
+    try {
+      categories = await widget.itemRepository.listCategories();
+    } catch (_) {
+      return;
+    }
+    if (mounted) setState(() => _categories = categories);
+  }
+
+  void _handleCategorySelected(String? categoryId) {
+    if (categoryId == _selectedCategoryId) return;
+    setState(() => _selectedCategoryId = categoryId);
+  }
+
+  List<Item> _filterItemsByCategory(List<Item> items) {
+    final categoryId = _selectedCategoryId;
+    if (categoryId == null || categoryId.isEmpty) return items;
+    final category = _categories.where((category) => category.id == categoryId);
+    if (category.isEmpty) return items;
+    final selectedCategory = category.first;
+    return items
+        .where((item) => _itemMatchesCategory(item, selectedCategory))
+        .toList(growable: false);
+  }
+
+  bool _itemMatchesCategory(Item item, ItemCategory category) {
+    if (item.categoryId.isNotEmpty && item.categoryId == category.id) {
+      return true;
+    }
+    if (item.categoryKey.isNotEmpty && category.key.isNotEmpty) {
+      if (item.categoryKey == category.key) return true;
+    }
+    if (item.categoryName.isNotEmpty && category.name.isNotEmpty) {
+      return item.categoryName == category.name;
+    }
+    return false;
   }
 
   Future<void> _submitItems() async {
@@ -132,6 +174,7 @@ class _PackItemPickerPageState extends State<PackItemPickerPage> {
             future: _itemsFuture,
             builder: (context, snapshot) {
               final allItems = snapshot.data ?? const <Item>[];
+              final visibleItems = _filterItemsByCategory(allItems);
               for (final item in allItems) {
                 _knownItemsById[item.id] = item;
               }
@@ -151,7 +194,13 @@ class _PackItemPickerPageState extends State<PackItemPickerPage> {
                           controller: _searchController,
                           onChanged: _searchItems,
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 8),
+                        ItemCategoryTabs(
+                          categories: _categories,
+                          selectedCategoryId: _selectedCategoryId,
+                          onSelected: _handleCategorySelected,
+                        ),
+                        const SizedBox(height: 10),
                         if (snapshot.connectionState == ConnectionState.waiting)
                           const Padding(
                             padding: EdgeInsets.only(top: 80),
@@ -166,7 +215,7 @@ class _PackItemPickerPageState extends State<PackItemPickerPage> {
                             ),
                           )
                         else
-                          ...allItems.map(
+                          ...visibleItems.map(
                             (item) => Padding(
                               padding: const EdgeInsets.only(bottom: 14),
                               child: _SelectableItemRow(

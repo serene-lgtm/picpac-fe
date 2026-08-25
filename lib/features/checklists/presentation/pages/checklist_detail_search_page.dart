@@ -55,10 +55,41 @@ class _ChecklistDetailSearchPageState extends State<ChecklistDetailSearchPage> {
   }
 
   Future<void> _loadItemsIfNeeded() async {
-    if (_itemsById.isNotEmpty) return;
+    final missingItem = _checklist.items
+        .where((line) => line.referenceType == 'item')
+        .any(
+          (line) =>
+              line.referenceId.isNotEmpty &&
+              !_itemsById.containsKey(line.referenceId),
+        );
+    if (_itemsById.isNotEmpty && !missingItem) return;
+    await _reloadItemsById();
+  }
+
+  Future<void> _reloadItemsById() async {
     final items = await widget.itemRepository.listItems();
+    final itemsById = {for (final item in items) item.id: item};
+    final missingIds = _checklist.items
+        .where((line) => line.referenceType == 'item')
+        .map((line) => line.referenceId)
+        .where((id) => id.isNotEmpty && !itemsById.containsKey(id))
+        .toSet();
+    if (missingIds.isNotEmpty) {
+      final fetchedItems = await Future.wait(
+        missingIds.map((id) async {
+          try {
+            return await widget.itemRepository.getItem(id);
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
+      for (final item in fetchedItems.whereType<Item>()) {
+        itemsById[item.id] = item;
+      }
+    }
     if (!mounted) return;
-    setState(() => _itemsById = {for (final item in items) item.id: item});
+    setState(() => _itemsById = itemsById);
   }
 
   void _search(String value) {
@@ -98,6 +129,7 @@ class _ChecklistDetailSearchPageState extends State<ChecklistDetailSearchPage> {
         _checklist = updated;
         _updatingIds.remove(line.id);
       });
+      await _reloadItemsById();
     } finally {
       if (mounted) setState(() => _updatingIds.remove(line.id));
     }
@@ -113,10 +145,7 @@ class _ChecklistDetailSearchPageState extends State<ChecklistDetailSearchPage> {
       itemRepository: widget.itemRepository,
     );
     if (!mounted) return;
-    final items = await widget.itemRepository.listItems();
-    if (mounted) {
-      setState(() => _itemsById = {for (final item in items) item.id: item});
-    }
+    await _reloadItemsById();
   }
 
   @override

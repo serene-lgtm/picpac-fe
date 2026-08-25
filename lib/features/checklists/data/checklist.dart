@@ -54,15 +54,22 @@ class ChecklistLineItem {
 
   factory ChecklistLineItem.fromJson(Map<String, dynamic> json) {
     final snapshot = json['snapshot'];
+    final referenceType =
+        _stringFrom(json, const ['reference_type', 'referenceType']) ?? '';
     return ChecklistLineItem(
       id: _stringFrom(json, const ['id', '_id']) ?? '',
-      referenceType:
-          _stringFrom(json, const ['reference_type', 'referenceType']) ?? '',
+      referenceType: referenceType.toLowerCase(),
       referenceId:
-          _stringFrom(json, const ['reference_id', 'referenceId']) ?? '',
+          _stringFrom(json, const [
+            'reference_id',
+            'referenceId',
+            'item_id',
+            'itemId',
+          ]) ??
+          '',
       snapshotName: snapshot is Map<String, dynamic>
           ? _stringFrom(snapshot, const ['name']) ?? ''
-          : '',
+          : _stringFrom(json, const ['snapshot_name', 'snapshotName']) ?? '',
       status: _stringFrom(json, const ['status']) ?? 'unchecked',
     );
   }
@@ -97,6 +104,12 @@ String? _stringFrom(Map<String, dynamic> json, List<String> keys) {
   for (final key in keys) {
     final value = json[key];
     if (value is String && value.trim().isNotEmpty) return value.trim();
+    if (value is Map) {
+      final objectId = value[r'$oid'] ?? value['oid'];
+      if (objectId is String && objectId.trim().isNotEmpty) {
+        return objectId.trim();
+      }
+    }
   }
   return null;
 }
