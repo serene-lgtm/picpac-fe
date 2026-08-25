@@ -20,6 +20,87 @@ class ItemsHeader extends StatelessWidget {
   }
 }
 
+class ItemCategoryTabs extends StatelessWidget {
+  const ItemCategoryTabs({
+    super.key,
+    required this.categories,
+    required this.selectedCategoryId,
+    required this.onSelected,
+    this.padding = const EdgeInsets.fromLTRB(18, 12, 18, 0),
+  });
+
+  final List<ItemCategory> categories;
+  final String? selectedCategoryId;
+  final ValueChanged<String?> onSelected;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    if (categories.isEmpty) return const SizedBox(height: 8);
+    return SizedBox(
+      height: 52,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: padding,
+        itemCount: categories.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final category = categories[index];
+          final selected = category.id == selectedCategoryId;
+          return _ItemCategoryTab(
+            key: ValueKey('item-category-tab-${category.id}'),
+            label: category.name,
+            selected: selected,
+            onTap: () => onSelected(selected ? null : category.id),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ItemCategoryTab extends StatelessWidget {
+  const _ItemCategoryTab({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 17),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: selected ? 1 : 0.22),
+          ),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: selected ? const Color(0xFF3DB7B5) : Colors.black54,
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class ItemsBlank extends StatelessWidget {
   const ItemsBlank({super.key, required this.onRefresh});
 
@@ -74,7 +155,7 @@ class ItemsList extends StatelessWidget {
         children: [
           ListView.separated(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(24, 24, 22, 112),
+            padding: const EdgeInsets.fromLTRB(24, 16, 22, 112),
             itemCount: items.length,
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -106,36 +187,11 @@ class ItemListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return AppItemTile(
+      item: item,
+      title: item.name,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        height: 72,
-        padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-        decoration: BoxDecoration(
-          color: const Color(0xCDEAF7F1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            ItemImageFrame(item: item, size: 50, iconSize: 56, borderRadius: 8),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                item.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.black,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
     );
   }
 }

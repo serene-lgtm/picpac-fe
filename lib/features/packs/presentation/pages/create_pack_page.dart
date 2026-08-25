@@ -10,6 +10,8 @@ import '../../../items/data/item.dart';
 import '../../../items/data/item_repository.dart';
 import '../../../items/presentation/widgets/item_detail_result.dart';
 import '../../../items/presentation/widgets/item_detail_sheet.dart';
+import '../../../items/presentation/widgets/item_list_widgets.dart';
+import '../../../items/presentation/widgets/item_shared_widgets.dart';
 import '../../../me/data/me_repository.dart';
 import '../../../me/presentation/pages/me_page.dart';
 import '../../data/pack.dart';

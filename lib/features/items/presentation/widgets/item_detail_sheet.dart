@@ -13,6 +13,7 @@ Future<ItemDetailResult?> showItemDetailSheet({
   required BuildContext context,
   required Item item,
   required ItemRepository itemRepository,
+  List<ItemCategory> categories = const [],
   String? initialSuccessMessage,
 }) {
   return showModalBottomSheet<ItemDetailResult>(
@@ -23,6 +24,7 @@ Future<ItemDetailResult?> showItemDetailSheet({
     builder: (context) => _ItemDetailSheet(
       item: item,
       itemRepository: itemRepository,
+      categories: categories,
       initialSuccessMessage: initialSuccessMessage,
     ),
   );
@@ -32,11 +34,13 @@ class _ItemDetailSheet extends StatefulWidget {
   const _ItemDetailSheet({
     required this.item,
     required this.itemRepository,
+    required this.categories,
     this.initialSuccessMessage,
   });
 
   final Item item;
   final ItemRepository itemRepository;
+  final List<ItemCategory> categories;
   final String? initialSuccessMessage;
 
   @override
@@ -46,6 +50,7 @@ class _ItemDetailSheet extends StatefulWidget {
 class _ItemDetailSheetState extends State<_ItemDetailSheet> {
   late Future<Item> _itemFuture;
   late Item _item;
+  late List<ItemCategory> _categories;
   Timer? _successTimer;
   String? _successMessage;
   bool _deleting = false;
@@ -55,7 +60,11 @@ class _ItemDetailSheetState extends State<_ItemDetailSheet> {
   void initState() {
     super.initState();
     _item = widget.item;
+    _categories = widget.categories;
     _itemFuture = _loadItem();
+    if (_categories.isEmpty) {
+      unawaited(_loadCategories());
+    }
     final message = widget.initialSuccessMessage;
     if (message != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -68,6 +77,16 @@ class _ItemDetailSheetState extends State<_ItemDetailSheet> {
     final item = await widget.itemRepository.getItem(widget.item.id);
     _item = item;
     return item;
+  }
+
+  Future<void> _loadCategories() async {
+    final List<ItemCategory> categories;
+    try {
+      categories = await widget.itemRepository.listCategories();
+    } catch (_) {
+      return;
+    }
+    if (mounted) setState(() => _categories = categories);
   }
 
   void _showSuccess(String message) {
@@ -198,13 +217,15 @@ class _ItemDetailSheetState extends State<_ItemDetailSheet> {
         initialItem: _item,
         title: '编辑物品',
         submitLabel: '保存',
+        categories: _categories,
         popOnSubmit: false,
         onSubmitted: _handleUpdated,
         onCancel: _cancelEdit,
-        onSubmit: (name, description, image) {
+        onSubmit: (name, categoryId, description, image) {
           return widget.itemRepository.updateItem(
             itemId: _item.id,
             name: name,
+            categoryId: categoryId,
             description: description,
             image: image,
           );
@@ -256,6 +277,10 @@ class _ItemDetailSheetState extends State<_ItemDetailSheet> {
                             fontWeight: FontWeight.w800,
                           ),
                     ),
+                    if (item.categoryName.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      ItemCategoryPill(label: item.categoryName),
+                    ],
                     const SizedBox(height: 10),
                     Container(height: 1, color: const Color(0xFFE1E4E8)),
                     const SizedBox(height: 12),

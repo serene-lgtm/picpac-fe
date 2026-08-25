@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../items/data/item.dart';
+import '../../../items/presentation/widgets/item_shared_widgets.dart';
 import '../../../packs/data/pack.dart';
 import '../../../../shared/widgets/search_pill_field.dart';
 import 'checklist_theme.dart';
@@ -136,12 +137,21 @@ class ChecklistItemImportTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ImportCard(
-      leading: Image.asset(checklistGiftAsset, width: 48, height: 48),
+    return AppItemTile(
+      item: item,
       title: item.name,
-      selected: selected,
-      locked: locked,
       onTap: onTap,
+      disabled: locked,
+      backgroundColor: checklistCardColor,
+      borderRadius: 8,
+      padding: const EdgeInsets.fromLTRB(20, 6, 14, 6),
+      trailing: ItemSelectionCircle(
+        selected: selected,
+        locked: locked,
+        onTap: onTap,
+        selectedColor: checklistPrimary,
+        lockedColor: const Color(0xFFB8C6C5),
+      ),
     );
   }
 }
@@ -249,6 +259,7 @@ class ChecklistPackImportTile extends StatelessWidget {
             ...pack.items.map((itemId) {
               final item = itemsById[itemId];
               return _ExpandedItemRow(
+                item: item,
                 name: item?.name ?? itemId,
                 selected: selectedItemIds.contains(itemId),
                 locked: lockedItemIds.contains(itemId),
@@ -261,70 +272,16 @@ class ChecklistPackImportTile extends StatelessWidget {
   }
 }
 
-class _ImportCard extends StatelessWidget {
-  const _ImportCard({
-    required this.leading,
-    required this.title,
-    required this.selected,
-    required this.onTap,
-    this.locked = false,
-  });
-
-  final Widget leading;
-  final String title;
-  final bool selected;
-  final VoidCallback onTap;
-  final bool locked;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: checklistCardColor,
-      borderRadius: BorderRadius.circular(8),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: locked ? null : onTap,
-        child: SizedBox(
-          height: 72,
-          child: Row(
-            children: [
-              const SizedBox(width: 14),
-              leading,
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              _SelectionCircle(
-                selected: selected,
-                locked: locked,
-                onTap: onTap,
-              ),
-              const SizedBox(width: 14),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _ExpandedItemRow extends StatelessWidget {
   const _ExpandedItemRow({
+    required this.item,
     required this.name,
     required this.selected,
     required this.onTap,
     this.locked = false,
   });
 
+  final Item? item;
   final String name;
   final bool selected;
   final VoidCallback onTap;
@@ -332,34 +289,25 @@ class _ExpandedItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: locked ? null : onTap,
-      child: Container(
-        height: 58,
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0x19000000))),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 14),
-            Image.asset(checklistGiftAsset, width: 42, height: 42),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            _SelectionCircle(selected: selected, locked: locked, onTap: onTap),
-            const SizedBox(width: 14),
-          ],
-        ),
+    return AppItemTile(
+      item: item,
+      title: name,
+      onTap: onTap,
+      disabled: locked,
+      backgroundColor: checklistCardColor,
+      borderRadius: 0,
+      height: 58,
+      imageSize: 42,
+      iconSize: 46,
+      imageGap: 14,
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+      border: const Border(top: BorderSide(color: Color(0x19000000))),
+      trailing: ItemSelectionCircle(
+        selected: selected,
+        locked: locked,
+        onTap: onTap,
+        selectedColor: checklistPrimary,
+        lockedColor: const Color(0xFFB8C6C5),
       ),
     );
   }

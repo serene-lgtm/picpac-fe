@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../items/data/item.dart';
+import '../../../items/presentation/widgets/item_shared_widgets.dart';
 import '../../data/checklist.dart';
 import 'checklist_theme.dart';
 
@@ -91,68 +92,25 @@ class ChecklistLineCard extends StatelessWidget {
     final name =
         item?.name ?? (line.snapshotName.isEmpty ? '物品' : line.snapshotName);
     final selected = removeMode ? removeSelected : line.checked;
-    return Material(
-      color: checklistCardColor,
-      borderRadius: BorderRadius.circular(7),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          height: 72,
-          child: Row(
-            children: [
-              const SizedBox(width: 30),
-              Image.asset(checklistGiftAsset, width: 46, height: 46),
-              const SizedBox(width: 24),
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: line.checked
-                        ? const Color(0xFF8E9D98)
-                        : Colors.black,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    decoration: line.checked
-                        ? TextDecoration.lineThrough
-                        : null,
-                  ),
-                ),
+    return AppItemTile(
+      item: item,
+      title: name,
+      onTap: onTap,
+      checked: line.checked,
+      backgroundColor: checklistCardColor,
+      borderRadius: 7,
+      padding: const EdgeInsets.fromLTRB(20, 6, 14, 6),
+      trailing: IconButton(
+        onPressed: updating ? null : onToggle,
+        icon: updating
+            ? const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : ItemSelectionCircle(
+                selected: selected,
+                selectedColor: checklistPrimary,
               ),
-              IconButton(
-                onPressed: updating ? null : onToggle,
-                icon: updating
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : CircleAvatar(
-                        radius: 11,
-                        backgroundColor: selected
-                            ? checklistPrimary
-                            : Colors.transparent,
-                        child: selected
-                            ? const Icon(
-                                Icons.check_rounded,
-                                color: Colors.white,
-                                size: 16,
-                              )
-                            : Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: const Color(0xFFC7CDD2),
-                                  ),
-                                ),
-                              ),
-                      ),
-              ),
-              const SizedBox(width: 14),
-            ],
-          ),
-        ),
       ),
     );
   }

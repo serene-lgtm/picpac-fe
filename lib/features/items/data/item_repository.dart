@@ -4,13 +4,16 @@ import '../../../core/network/api_client.dart';
 import 'item.dart';
 
 abstract class ItemRepository {
-  Future<List<Item>> listItems({String? userId, String? q});
+  Future<List<ItemCategory>> listCategories();
+
+  Future<List<Item>> listItems({String? userId, String? q, String? categoryId});
 
   Future<Item> getItem(String itemId);
 
   Future<Item> createItem({
     required String name,
     String? description,
+    String? categoryId,
     String? userId,
     MultipartFilePart? image,
   });
@@ -19,6 +22,7 @@ abstract class ItemRepository {
     required String itemId,
     required String name,
     String? description,
+    String? categoryId,
     MultipartFilePart? image,
   });
 
@@ -31,10 +35,32 @@ class ApiItemRepository implements ItemRepository {
   final ApiClient _client;
 
   @override
-  Future<List<Item>> listItems({String? userId, String? q}) async {
+  Future<List<ItemCategory>> listCategories() async {
+    final response = await _client.getJson('/api/v1/categories');
+    final categoriesJson = response['categories'];
+    if (categoriesJson is! List) {
+      return const [];
+    }
+    return categoriesJson
+        .whereType<Map<String, dynamic>>()
+        .map(ItemCategory.fromJson)
+        .where((category) => category.id.isNotEmpty && category.name.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<List<Item>> listItems({
+    String? userId,
+    String? q,
+    String? categoryId,
+  }) async {
     final response = await _client.getJson(
       '/api/v1/item',
-      queryParameters: {'user_id': userId, 'q': q?.trim()},
+      queryParameters: {
+        'user_id': userId,
+        'q': q?.trim(),
+        'category_id': categoryId?.trim(),
+      },
     );
     final itemsJson = response['items'];
     if (itemsJson is! List) {
@@ -56,6 +82,7 @@ class ApiItemRepository implements ItemRepository {
   Future<Item> createItem({
     required String name,
     String? description,
+    String? categoryId,
     String? userId,
     MultipartFilePart? image,
   }) async {
@@ -63,6 +90,8 @@ class ApiItemRepository implements ItemRepository {
       'name': name,
       if (description != null && description.trim().isNotEmpty)
         'description': description.trim(),
+      if (categoryId != null && categoryId.trim().isNotEmpty)
+        'category_id': categoryId.trim(),
       if (userId != null && userId.trim().isNotEmpty) 'user_id': userId.trim(),
     };
     final response = await _client.postMultipart(
@@ -78,11 +107,13 @@ class ApiItemRepository implements ItemRepository {
     required String itemId,
     required String name,
     String? description,
+    String? categoryId,
     MultipartFilePart? image,
   }) async {
     final fields = <String, String>{
       'name': name,
       if (description != null) 'description': description,
+      if (categoryId != null) 'category_id': categoryId.trim(),
     };
     final response = await _client.putMultipart(
       '/api/v1/item/$itemId',

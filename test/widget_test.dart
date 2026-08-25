@@ -17,7 +17,15 @@ void main() {
     await tester.pumpWidget(
       _buildItemsPage(
         itemRepository: _FakeItemRepository(
-          initialItems: const [Item(id: '1', name: '手机')],
+          initialItems: const [
+            Item(
+              id: '1',
+              name: '手机',
+              categoryId: 'category-1',
+              categoryKey: 'electronics',
+              categoryName: '电子产品',
+            ),
+          ],
         ),
       ),
     );
@@ -41,6 +49,47 @@ void main() {
 
     expect(find.text('请添加一些物品吧！'), findsOneWidget);
   });
+
+  testWidgets('category tab filters items locally by name fallback', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _buildItemsPage(
+        itemRepository: _FakeItemRepository(
+          initialItems: const [
+            Item(id: '1', name: '护照', categoryName: '其他'),
+            Item(
+              id: '2',
+              name: '手机',
+              categoryId: 'category-1',
+              categoryKey: 'electronics',
+              categoryName: '电子产品',
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('护照'), findsOneWidget);
+    expect(find.text('手机'), findsOneWidget);
+
+    final otherTab = find.byKey(const ValueKey('item-category-tab-category-2'));
+
+    await tester.tap(otherTab);
+    await tester.pumpAndSettle();
+
+    expect(find.text('护照'), findsOneWidget);
+    expect(find.text('手机'), findsNothing);
+
+    await tester.tap(otherTab);
+    await tester.pumpAndSettle();
+
+    expect(find.text('护照'), findsOneWidget);
+    expect(find.text('手机'), findsOneWidget);
+  });
 }
 
 Widget _buildItemsPage({required ItemRepository itemRepository}) {
@@ -61,29 +110,53 @@ class _FakeItemRepository implements ItemRepository {
     : _items = initialItems;
 
   List<Item> _items;
+  static const _categories = [
+    ItemCategory(id: 'category-1', key: 'electronics', name: '电子产品'),
+    ItemCategory(id: 'category-2', key: 'other', name: '其他'),
+  ];
+
+  @override
+  Future<List<ItemCategory>> listCategories() async => _categories;
 
   @override
   Future<Item> createItem({
     required String name,
     String? description,
+    String? categoryId,
     String? userId,
     MultipartFilePart? image,
   }) async {
+    final category = _categories.firstWhere(
+      (category) => category.id == categoryId,
+      orElse: () => _categories.first,
+    );
     final item = Item(
       id: '${_items.length + 1}',
       name: name,
       description: description ?? '',
       userId: userId ?? '',
+      categoryId: category.id,
+      categoryKey: category.key,
+      categoryName: category.name,
     );
     _items = [item, ..._items];
     return item;
   }
 
   @override
-  Future<List<Item>> listItems({String? userId, String? q}) async {
+  Future<List<Item>> listItems({
+    String? userId,
+    String? q,
+    String? categoryId,
+  }) async {
+    final categoryItems = categoryId == null || categoryId.isEmpty
+        ? _items
+        : _items
+              .where((item) => item.categoryId == categoryId)
+              .toList(growable: false);
     final keyword = q?.trim().toLowerCase();
-    if (keyword == null || keyword.isEmpty) return _items;
-    return _items
+    if (keyword == null || keyword.isEmpty) return categoryItems;
+    return categoryItems
         .where(
           (item) =>
               item.name.toLowerCase().contains(keyword) ||
@@ -102,10 +175,22 @@ class _FakeItemRepository implements ItemRepository {
     required String itemId,
     required String name,
     String? description,
+    String? categoryId,
     MultipartFilePart? image,
   }) async {
     final index = _items.indexWhere((item) => item.id == itemId);
-    final item = Item(id: itemId, name: name, description: description ?? '');
+    final category = _categories.firstWhere(
+      (category) => category.id == categoryId,
+      orElse: () => _categories.first,
+    );
+    final item = Item(
+      id: itemId,
+      name: name,
+      description: description ?? '',
+      categoryId: category.id,
+      categoryKey: category.key,
+      categoryName: category.name,
+    );
     if (index == -1) {
       _items = [item, ..._items];
     } else {

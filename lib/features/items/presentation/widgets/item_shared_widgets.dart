@@ -92,6 +92,165 @@ class _DefaultItemCover extends StatelessWidget {
   }
 }
 
+class AppItemTile extends StatelessWidget {
+  const AppItemTile({
+    super.key,
+    this.item,
+    required this.title,
+    this.description = '',
+    this.onTap,
+    this.trailing,
+    this.disabled = false,
+    this.checked = false,
+    this.backgroundColor = const Color(0xCDEAF7F1),
+    this.border,
+    this.borderRadius = 8,
+    this.height = 72,
+    this.padding = const EdgeInsets.fromLTRB(20, 6, 14, 6),
+    this.imageSize = 50,
+    this.iconSize = 56,
+    this.imageGap = 12,
+    this.showCategory = true,
+  });
+
+  final Item? item;
+  final String title;
+  final String description;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+  final bool disabled;
+  final bool checked;
+  final Color backgroundColor;
+  final BoxBorder? border;
+  final double borderRadius;
+  final double height;
+  final EdgeInsetsGeometry padding;
+  final double imageSize;
+  final double iconSize;
+  final double imageGap;
+  final bool showCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    final categoryName = item?.categoryName ?? '';
+    final secondary = showCategory && categoryName.isNotEmpty
+        ? ItemCategoryPill(label: categoryName, compact: true)
+        : description.trim().isEmpty
+        ? null
+        : Text(
+            description,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: const Color(0xFF646A6A),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          );
+
+    return InkWell(
+      onTap: disabled ? null : onTap,
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: Container(
+        height: height,
+        padding: padding,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(borderRadius),
+          border: border,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            item == null
+                ? SizedBox(
+                    width: imageSize,
+                    height: imageSize,
+                    child: _DefaultItemCover(iconSize: iconSize),
+                  )
+                : ItemImageFrame(
+                    item: item!,
+                    size: imageSize,
+                    iconSize: iconSize,
+                    borderRadius: 8,
+                  ),
+            SizedBox(width: imageGap),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: disabled
+                          ? const Color(0xFF8F8F96)
+                          : checked
+                          ? const Color(0xFF8E9D98)
+                          : Colors.black,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      decoration: checked ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                  if (secondary != null) ...[
+                    const SizedBox(height: 4),
+                    secondary,
+                  ],
+                ],
+              ),
+            ),
+            if (trailing != null) ...[const SizedBox(width: 12), trailing!],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ItemSelectionCircle extends StatelessWidget {
+  const ItemSelectionCircle({
+    super.key,
+    required this.selected,
+    this.locked = false,
+    this.onTap,
+    this.selectedColor = const Color(0xFF48B8B4),
+    this.lockedColor = const Color(0xFFB8DCD9),
+  });
+
+  final bool selected;
+  final bool locked;
+  final VoidCallback? onTap;
+  final Color selectedColor;
+  final Color lockedColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final circle = selected
+        ? CircleAvatar(
+            radius: 12,
+            backgroundColor: locked ? lockedColor : selectedColor,
+            child: const Icon(
+              Icons.check_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+          )
+        : Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFC8C8D0), width: 1.4),
+            ),
+          );
+    if (onTap == null || locked) return circle;
+    return GestureDetector(onTap: onTap, child: circle);
+  }
+}
+
 class ItemErrorState extends StatelessWidget {
   const ItemErrorState({
     super.key,
@@ -166,6 +325,43 @@ class ItemSuccessBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class ItemCategoryPill extends StatelessWidget {
+  const ItemCategoryPill({
+    super.key,
+    required this.label,
+    this.compact = false,
+  });
+
+  final String label;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    if (label.trim().isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 9 : 11,
+        vertical: compact ? 2 : 3,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFC7F1E8),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFF7FD8CE), width: 1),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: const Color(0xFF3DB7B5),
+          fontSize: compact ? 10 : 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
