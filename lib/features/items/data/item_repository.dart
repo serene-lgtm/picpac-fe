@@ -26,6 +26,10 @@ abstract class ItemRepository {
     MultipartFilePart? image,
   });
 
+  Future<List<ItemDraft>> generateItemDrafts(String text);
+
+  Future<List<Item>> batchCreateItems(List<ItemDraft> drafts);
+
   Future<void> deleteItem(String itemId);
 }
 
@@ -126,6 +130,41 @@ class ApiItemRepository implements ItemRepository {
   @override
   Future<void> deleteItem(String itemId) async {
     await _client.deleteJson('/api/v1/item/$itemId');
+  }
+
+  @override
+  Future<List<ItemDraft>> generateItemDrafts(String text) async {
+    final response = await _client.postJson(
+      '/api/v1/ai/item-drafts',
+      body: {'text': text.trim()},
+    );
+    final draftsJson = response['draft_items'];
+    if (draftsJson is! List) {
+      return const [];
+    }
+    return draftsJson
+        .whereType<Map<String, dynamic>>()
+        .map(ItemDraft.fromJson)
+        .where((draft) => draft.name.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<List<Item>> batchCreateItems(List<ItemDraft> drafts) async {
+    final response = await _client.postJson(
+      '/api/v1/item/batch',
+      body: {
+        'items': drafts.map((draft) => draft.toJson()).toList(growable: false),
+      },
+    );
+    final itemsJson = response['items'];
+    if (itemsJson is! List) {
+      return const [];
+    }
+    return itemsJson
+        .whereType<Map<String, dynamic>>()
+        .map(_itemFromJson)
+        .toList(growable: false);
   }
 
   Item _itemFromJson(Map<String, dynamic> json) {
