@@ -16,6 +16,7 @@ class AddItemSheet extends StatefulWidget {
     this.popOnSubmit = true,
     this.submitLabel = '保存',
     this.title = '添加物品',
+    this.onBack,
     this.onCancel,
   });
 
@@ -32,6 +33,7 @@ class AddItemSheet extends StatefulWidget {
   final bool popOnSubmit;
   final String submitLabel;
   final String title;
+  final VoidCallback? onBack;
   final VoidCallback? onCancel;
 
   @override
@@ -240,6 +242,17 @@ class _AddItemSheetState extends State<AddItemSheet> {
                               ),
                         ),
                       ),
+                      if (widget.onBack != null)
+                        Positioned(
+                          left: -12,
+                          top: 16,
+                          child: IconButton(
+                            onPressed: widget.onBack,
+                            icon: const Icon(Icons.chevron_left_rounded),
+                            iconSize: 32,
+                            color: Colors.black,
+                          ),
+                        ),
                       Positioned(
                         right: -9,
                         top: 20,

@@ -15,6 +15,7 @@ import '../../../packs/presentation/pages/create_pack_page.dart';
 import '../../data/item.dart';
 import '../../data/item_repository.dart';
 import '../widgets/add_item_sheet.dart';
+import '../widgets/ai_bulk_add_item_sheet.dart';
 import '../widgets/item_detail_result.dart';
 import '../widgets/item_detail_sheet.dart';
 import '../widgets/item_list_widgets.dart';
@@ -90,6 +91,38 @@ class _ItemsPageState extends State<ItemsPage> {
       final categories = await widget.repository.listCategories();
       if (!mounted) return;
       setState(() => _categories = categories);
+    }
+    final method = await showModalBottomSheet<AddItemMethod>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.46),
+      builder: (context) {
+        return AddItemMethodSheet(
+          onManual: () => Navigator.of(context).pop(AddItemMethod.manual),
+          onAiBulk: () => Navigator.of(context).pop(AddItemMethod.aiBulk),
+        );
+      },
+    );
+    if (!mounted || method == null) return;
+    if (method == AddItemMethod.aiBulk) {
+      final items = await showModalBottomSheet<List<Item>>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        barrierColor: Colors.black.withValues(alpha: 0.46),
+        builder: (context) {
+          return AiBulkAddItemSheet(
+            repository: widget.repository,
+            categories: _categories,
+          );
+        },
+      );
+      if (items != null && items.isNotEmpty && mounted) {
+        await _refresh();
+        _showSuccess('添加成功');
+      }
+      return;
     }
     final created = await showModalBottomSheet<Item>(
       context: context,

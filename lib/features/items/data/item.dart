@@ -14,6 +14,58 @@ class ItemCategory {
   }
 }
 
+class ItemDraft {
+  const ItemDraft({
+    required this.name,
+    this.description = '',
+    this.categoryId = '',
+    this.categoryKey = '',
+    this.categoryName = '',
+  });
+
+  final String name;
+  final String description;
+  final String categoryId;
+  final String categoryKey;
+  final String categoryName;
+
+  ItemDraft copyWith({
+    String? name,
+    String? description,
+    String? categoryId,
+    String? categoryKey,
+    String? categoryName,
+  }) {
+    return ItemDraft(
+      name: name ?? this.name,
+      description: description ?? this.description,
+      categoryId: categoryId ?? this.categoryId,
+      categoryKey: categoryKey ?? this.categoryKey,
+      categoryName: categoryName ?? this.categoryName,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name.trim(),
+      if (description.trim().isNotEmpty) 'description': description.trim(),
+      if (categoryId.trim().isNotEmpty) 'category_id': categoryId.trim(),
+    };
+  }
+
+  factory ItemDraft.fromJson(Map<String, dynamic> json) {
+    return ItemDraft(
+      name: _stringFrom(json, const ['name']) ?? '',
+      description: _stringFrom(json, const ['description']) ?? '',
+      categoryId: _stringFrom(json, const ['category_id', 'categoryId']) ?? '',
+      categoryKey:
+          _stringFrom(json, const ['category_key', 'categoryKey']) ?? '',
+      categoryName:
+          _stringFrom(json, const ['category_name', 'categoryName']) ?? '',
+    );
+  }
+}
+
 class Item {
   const Item({
     required this.id,

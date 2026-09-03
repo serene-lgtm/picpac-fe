@@ -144,6 +144,41 @@ class _FakeItemRepository implements ItemRepository {
   }
 
   @override
+  Future<List<ItemDraft>> generateItemDrafts(String text) async {
+    return const [
+      ItemDraft(
+        name: '护照夹',
+        categoryId: 'category-2',
+        categoryKey: 'other',
+        categoryName: '其他',
+      ),
+    ];
+  }
+
+  @override
+  Future<List<Item>> batchCreateItems(List<ItemDraft> drafts) async {
+    final created = <Item>[];
+    for (final draft in drafts) {
+      final category = _categories.firstWhere(
+        (category) => category.id == draft.categoryId,
+        orElse: () => _categories.first,
+      );
+      created.add(
+        Item(
+          id: '${_items.length + created.length + 1}',
+          name: draft.name,
+          description: draft.description,
+          categoryId: category.id,
+          categoryKey: category.key,
+          categoryName: category.name,
+        ),
+      );
+    }
+    _items = [...created, ..._items];
+    return created;
+  }
+
+  @override
   Future<List<Item>> listItems({
     String? userId,
     String? q,

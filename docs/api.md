@@ -351,6 +351,74 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 - `502`: 图片上传失败
 - `500`: 创建 item、查询默认 category 或生成图片访问 URL 失败
 
+### Batch Create Items
+
+`POST /api/v1/item/batch`
+
+用途：
+- 批量创建当前用户的 item
+- 适合配合 `POST /api/v1/ai/item-drafts` 使用：AI 先生成草稿，用户确认后批量创建
+- `user_id` 从当前登录用户读取，不接受前端显式传入
+- 当前最多一次创建 50 个 item
+- 批量创建使用 MongoDB transaction，语义上要求全部成功或全部失败
+
+请求类型：
+- `application/json`
+
+请求头：
+- `Authorization: Bearer <access_token>`
+
+请求字段：
+- `items`: array，必填且不能为空
+- `items[].name`: string，必填
+- `items[].description`: string，可选
+- `items[].category_id`: string，可选；不传或传空字符串时后端使用 `key=other` 的 category
+
+请求示例：
+
+```json
+{
+  "items": [
+    {
+      "name": "手机",
+      "description": "主力机",
+      "category_id": "6821c0c1f1b2f4d5a6b7c8a2"
+    },
+    {
+      "name": "充电线",
+      "category_id": "6821c0c1f1b2f4d5a6b7c8a2"
+    }
+  ]
+}
+```
+
+成功响应：
+
+```json
+{
+  "items": [
+    {
+      "id": "6821c0c1f1b2f4d5a6b7c8d9",
+      "user_id": "6821c0c1f1b2f4d5a6b7c8d1",
+      "category_id": "6821c0c1f1b2f4d5a6b7c8a2",
+      "category_key": "electronics",
+      "category_name": "电子设备",
+      "name": "手机",
+      "description": "主力机",
+      "source_image_url": "",
+      "image_thumbnail_url": "",
+      "ai_rendered_image_url": "",
+      "status": "created"
+    }
+  ]
+}
+```
+
+失败响应：
+- `400`: `items` 缺失/为空/超过 50 个，缺少 `items[].name`，或 `category_id` 非法/不存在
+- `401`: access token 缺失、非法或过期
+- `500`: 批量创建 item、查询默认 category 或生成图片访问 URL 失败
+
 ### List Items
 
 `GET /api/v1/item`
@@ -538,6 +606,138 @@ picpac 是一个个人物品管理手机 app 的后端服务。
 - `401`: access token 缺失、非法或过期
 - `404`: item 不存在
 - `500`: 删除 item 失败
+
+### Recommend Pack Items
+
+`POST /api/v1/ai/pack/item-recommendations`
+
+用途：
+- 根据用户输入的 pack name 和可选 description，推荐当前用户已有 item 中适合加入该 pack 的 item
+- 此接口只做推荐，不会创建 pack、不会创建 item、不会修改 pack/checklist/item
+- 后端会读取当前用户的 item 列表并交给 DeepSeek 做语义推荐
+- 当前最多返回 15 个推荐 item；前端可在收到结果后与本地已勾选状态合并，再询问用户是否一键添加
+
+请求类型：
+- `application/json`
+
+请求头：
+- `Authorization: Bearer <access_token>`
+
+请求字段：
+- `pack_name`: string，必填；去首尾空格后长度 1-64
+- `description`: string，可选；去首尾空格后最大长度 200
+
+请求示例：
+
+```json
+{
+  "pack_name": "日本出差",
+  "description": "东京 5 天商务行程"
+}
+```
+
+成功响应：
+
+```json
+{
+  "recommended_items": [
+    {
+      "id": "6821c0c1f1b2f4d5a6b7c8d9",
+      "name": "护照"
+    },
+    {
+      "id": "6821c0c1f1b2f4d5a6b7c8da",
+      "name": "充电器"
+    }
+  ]
+}
+```
+
+空推荐响应：
+
+```json
+{
+  "recommended_items": []
+}
+```
+
+说明：
+- 返回值只包含推荐 item 的 `id` 和 `name`，不返回 category、图片 URL 或完整 item 详情
+- 推荐结果只会包含当前用户已有且未逻辑删除的 item
+- AI 返回结果会在后端做 ref 校验、去重和最多 15 个的截断兜底
+
+失败响应：
+- `400`: 缺少 `pack_name`，`pack_name` 超长，或 `description` 超长
+- `401`: access token 缺失、非法或过期
+- `500`: 查询 item/category 列表失败，或 DeepSeek 推荐失败
+
+### Generate Item Drafts
+
+`POST /api/v1/ai/item-drafts`
+
+用途：
+- 从用户自然语言中提取待创建 item 草稿
+- 此接口只生成草稿，不会创建 item，不会修改用户物品库
+- 后端会读取系统 category 列表，并让 AI 为每个 draft 选择 category
+- AI 只返回 category key；后端根据真实 category 表映射出 `category_id/category_name`
+- 如果 AI 返回未知 category key，后端会 fallback 到 `key=other` 的 category
+- 当前最多返回 50 个 draft item；同一次结果内重复 name 会被去重
+
+请求类型：
+- `application/json`
+
+请求头：
+- `Authorization: Bearer <access_token>`
+
+请求字段：
+- `text`: string，必填；用户自然语言输入，去首尾空格后长度 1-500
+
+请求示例：
+
+```json
+{
+  "text": "请帮我添加手机，充电线，相机"
+}
+```
+
+成功响应：
+
+```json
+{
+  "draft_items": [
+    {
+      "name": "手机",
+      "category_id": "6821c0c1f1b2f4d5a6b7c8a2",
+      "category_key": "electronics",
+      "category_name": "电子设备"
+    },
+    {
+      "name": "充电线",
+      "category_id": "6821c0c1f1b2f4d5a6b7c8a2",
+      "category_key": "electronics",
+      "category_name": "电子设备"
+    }
+  ]
+}
+```
+
+空草稿响应：
+
+```json
+{
+  "draft_items": []
+}
+```
+
+说明：
+- 此接口用于前端展示待创建草稿，由用户确认/编辑后再调用批量创建接口
+- 第一版只做本次 AI draft 内去重，不检查用户物品库中是否已有同名 item
+- 不支持上传图片；图片仍需通过单个 item 更新/创建流程处理
+
+失败响应：
+- `400`: 缺少 `text`，或 `text` 超长
+- `401`: access token 缺失、非法或过期
+- `500`: 查询 category 列表失败，或 DeepSeek 草稿提取失败
 
 ### Create Pack
 
