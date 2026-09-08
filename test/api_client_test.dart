@@ -32,6 +32,50 @@ void main() {
     expect(body, contains('抽纸'));
   });
 
+  test('postMultipart sends multiple file parts', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(server.close);
+
+    late String body;
+    final requestDone = Completer<void>();
+    unawaited(
+      server.first.then((request) async {
+        body = await utf8.decodeStream(request);
+        request.response
+          ..statusCode = HttpStatus.ok
+          ..headers.contentType = ContentType.json
+          ..write('{"id":"1","name":"抽纸"}');
+        await request.response.close();
+        requestDone.complete();
+      }),
+    );
+
+    final client = ApiClient(baseUrl: 'http://localhost:${server.port}');
+    await client.postMultipart(
+      '/api/v1/item',
+      fields: {'name': '抽纸'},
+      files: [
+        MultipartFilePart(
+          fieldName: 'photos',
+          fileName: 'one.png',
+          contentType: 'image/png',
+          bytes: Future.value(utf8.encode('one')),
+        ),
+        MultipartFilePart(
+          fieldName: 'photos',
+          fileName: 'two.jpg',
+          contentType: 'image/jpeg',
+          bytes: Future.value(utf8.encode('two')),
+        ),
+      ],
+    );
+    await requestDone.future;
+
+    expect(RegExp('name="photos"').allMatches(body), hasLength(2));
+    expect(body, contains('filename="one.png"'));
+    expect(body, contains('filename="two.jpg"'));
+  });
+
   test('resolveUrl normalizes image URL variants', () {
     final client = ApiClient(baseUrl: 'http://localhost:9090/api');
 

@@ -66,6 +66,63 @@ class ItemDraft {
   }
 }
 
+class ItemPhoto {
+  const ItemPhoto({
+    required this.id,
+    this.sourceImageUrl = '',
+    this.displayImageUrl = '',
+  });
+
+  final String id;
+  final String sourceImageUrl;
+  final String displayImageUrl;
+
+  String get bestDisplayUrl {
+    if (displayImageUrl.isNotEmpty) return displayImageUrl;
+    return sourceImageUrl;
+  }
+
+  String get bestSourceUrl {
+    if (sourceImageUrl.isNotEmpty) return sourceImageUrl;
+    return displayImageUrl;
+  }
+
+  ItemPhoto normalizeImageUrls(String Function(String url) normalize) {
+    return ItemPhoto(
+      id: id,
+      sourceImageUrl: normalize(sourceImageUrl),
+      displayImageUrl: normalize(displayImageUrl),
+    );
+  }
+
+  factory ItemPhoto.fromJson(Map<String, dynamic> json) {
+    return ItemPhoto(
+      id: _stringFrom(json, const ['id', '_id']) ?? '',
+      sourceImageUrl:
+          _stringFrom(json, const [
+            'source_image_url',
+            'sourceImageUrl',
+            'sourceImageURL',
+            'SourceImageUrl',
+            'SourceImageURL',
+          ]) ??
+          '',
+      displayImageUrl:
+          _stringFrom(json, const [
+            'image_url',
+            'imageUrl',
+            'imageURL',
+            'ImageUrl',
+            'ImageURL',
+            'display_image_url',
+            'displayImageUrl',
+            'displayImageURL',
+          ]) ??
+          '',
+    );
+  }
+}
+
 class Item {
   const Item({
     required this.id,
@@ -75,6 +132,8 @@ class Item {
     this.categoryKey = '',
     this.categoryName = '',
     this.description = '',
+    this.coverImageUrl = '',
+    this.photos = const [],
     this.sourceImageUrl = '',
     this.imageThumbnailUrl = '',
     this.aiRenderedImageUrl = '',
@@ -88,6 +147,8 @@ class Item {
   final String categoryName;
   final String name;
   final String description;
+  final String coverImageUrl;
+  final List<ItemPhoto> photos;
   final String sourceImageUrl;
   final String imageThumbnailUrl;
   final String aiRenderedImageUrl;
@@ -100,7 +161,50 @@ class Item {
 
   List<String> get imageUrls {
     final urls = <String>[];
-    for (final url in [imageThumbnailUrl, sourceImageUrl, aiRenderedImageUrl]) {
+    for (final url in [
+      coverImageUrl,
+      for (final photo in photos) photo.bestDisplayUrl,
+      if (photos.isEmpty && coverImageUrl.isEmpty) ...[
+        imageThumbnailUrl,
+        if (imageThumbnailUrl.isEmpty) ...[
+          aiRenderedImageUrl,
+          if (aiRenderedImageUrl.isEmpty) sourceImageUrl,
+        ],
+      ],
+    ]) {
+      if (url.isNotEmpty && !urls.contains(url)) {
+        urls.add(url);
+      }
+    }
+    return urls;
+  }
+
+  List<String> get displayImageUrls {
+    if (photos.isNotEmpty) {
+      return photos
+          .map((photo) => photo.bestDisplayUrl)
+          .toList(growable: false);
+    }
+    final url = bestImageUrl;
+    return url.isEmpty ? const [] : [url];
+  }
+
+  List<String> get sourceImageUrls {
+    // The cover and legacy image fields are alternate representations, not
+    // additional photos. Signed URLs can differ even for the same image.
+    final photoUrls = photos
+        .map((photo) => photo.bestSourceUrl)
+        .where((url) => url.isNotEmpty)
+        .toList(growable: false);
+    if (photoUrls.isNotEmpty) return photoUrls;
+
+    final urls = <String>[];
+    for (final url in [
+      sourceImageUrl,
+      coverImageUrl,
+      imageThumbnailUrl,
+      aiRenderedImageUrl,
+    ]) {
       if (url.isNotEmpty && !urls.contains(url)) {
         urls.add(url);
       }
@@ -117,6 +221,10 @@ class Item {
       categoryName: categoryName,
       name: name,
       description: description,
+      coverImageUrl: normalize(coverImageUrl),
+      photos: photos
+          .map((photo) => photo.normalizeImageUrls(normalize))
+          .toList(growable: false),
       sourceImageUrl: normalize(sourceImageUrl),
       imageThumbnailUrl: normalize(imageThumbnailUrl),
       aiRenderedImageUrl: normalize(aiRenderedImageUrl),
@@ -130,6 +238,14 @@ class Item {
         ? imageJson
         : const <String, dynamic>{};
     final deepUrls = _deepImageStrings(json);
+    final photosJson = json['photos'];
+    final photos = photosJson is List
+        ? photosJson
+              .whereType<Map<String, dynamic>>()
+              .map(ItemPhoto.fromJson)
+              .where((photo) => photo.bestDisplayUrl.isNotEmpty)
+              .toList(growable: false)
+        : const <ItemPhoto>[];
     return Item(
       id: _stringFrom(json, const ['id', '_id']) ?? '',
       userId: _stringFrom(json, const ['user_id', 'userId']) ?? '',
@@ -140,6 +256,16 @@ class Item {
           _stringFrom(json, const ['category_name', 'categoryName']) ?? '',
       name: _stringFrom(json, const ['name']) ?? '',
       description: _stringFrom(json, const ['description']) ?? '',
+      coverImageUrl:
+          _stringFrom(json, const [
+            'cover_image_url',
+            'coverImageUrl',
+            'coverImageURL',
+            'CoverImageUrl',
+            'CoverImageURL',
+          ]) ??
+          '',
+      photos: photos,
       sourceImageUrl:
           _stringFrom(json, const [
             'source_image_url',

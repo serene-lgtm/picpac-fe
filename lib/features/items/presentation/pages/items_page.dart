@@ -132,12 +132,12 @@ class _ItemsPageState extends State<ItemsPage> {
       builder: (context) {
         return AddItemSheet(
           categories: _categories,
-          onSubmit: (name, categoryId, description, image) {
+          onSubmit: (name, categoryId, description, photos) {
             return widget.repository.createItem(
               name: name,
               categoryId: categoryId,
               description: description,
-              image: image,
+              photos: photos,
             );
           },
         );

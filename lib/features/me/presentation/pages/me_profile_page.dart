@@ -176,6 +176,7 @@ class _MeProfilePageState extends State<MeProfilePage> {
                             children: [
                               MeProfileAvatarCard(
                                 avatarUrl: profile?.avatarUrl ?? '',
+                                avatarSourceUrl: profile?.avatarSourceUrl ?? '',
                                 pickedAvatar: _pickedAvatar,
                                 onTap: _openAvatarActions,
                               ),

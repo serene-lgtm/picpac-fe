@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/network/api_client.dart';
 import 'me_common_widgets.dart';
+import '../../../../shared/widgets/fullscreen_image.dart';
 
 class MeAvatar extends StatelessWidget {
   const MeAvatar({
@@ -14,12 +15,14 @@ class MeAvatar extends StatelessWidget {
     required this.size,
     this.pickedAvatar,
     this.editable = false,
+    this.avatarSourceUrl = '',
   });
 
   final String avatarUrl;
   final double size;
   final XFile? pickedAvatar;
   final bool editable;
+  final String avatarSourceUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -29,42 +32,47 @@ class MeAvatar extends StatelessWidget {
       _ => const AssetImage('assets/common/default_avatar.png'),
     };
 
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: const Color(0xFFE3E6E7),
-                shape: BoxShape.circle,
-                image: DecorationImage(image: provider, fit: BoxFit.cover),
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-            ),
-          ),
-          if (editable)
-            Positioned(
-              right: 0,
-              bottom: size * 0.1,
-              child: Container(
-                width: 27,
-                height: 27,
+    return ImagePreview(
+      sourceUrl: pickedAvatar == null
+          ? (avatarSourceUrl.isNotEmpty ? avatarSourceUrl : avatarUrl)
+          : '',
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: meTeal,
+                  color: const Color(0xFFE3E6E7),
                   shape: BoxShape.circle,
+                  image: DecorationImage(image: provider, fit: BoxFit.cover),
                   border: Border.all(color: Colors.white, width: 2),
                 ),
-                child: const Icon(
-                  Icons.photo_camera_outlined,
-                  color: Colors.white,
-                  size: 15,
-                ),
               ),
             ),
-        ],
+            if (editable)
+              Positioned(
+                right: 0,
+                bottom: size * 0.1,
+                child: Container(
+                  width: 27,
+                  height: 27,
+                  decoration: BoxDecoration(
+                    color: meTeal,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(
+                    Icons.photo_camera_outlined,
+                    color: Colors.white,
+                    size: 15,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -76,8 +84,10 @@ class MeProfileAvatarCard extends StatelessWidget {
     required this.avatarUrl,
     required this.pickedAvatar,
     required this.onTap,
+    this.avatarSourceUrl = '',
   });
 
+  final String avatarSourceUrl;
   final String avatarUrl;
   final XFile? pickedAvatar;
   final VoidCallback onTap;
@@ -94,6 +104,7 @@ class MeProfileAvatarCard extends StatelessWidget {
           children: [
             MeAvatar(
               avatarUrl: avatarUrl,
+              avatarSourceUrl: avatarSourceUrl,
               pickedAvatar: pickedAvatar,
               size: 78,
               editable: true,
