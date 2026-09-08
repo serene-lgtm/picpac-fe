@@ -545,7 +545,7 @@ class _AiBulkAddItemSheetState extends State<AiBulkAddItemSheet> {
           ),
         );
       },
-      onSubmit: (name, categoryId, description, image) async {
+      onSubmit: (name, categoryId, description, photos) async {
         final category = _categoryFor(categoryId);
         return Item(
           id: 'draft-$index',

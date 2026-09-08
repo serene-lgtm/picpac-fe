@@ -43,12 +43,14 @@ class MeProfile {
     this.gender = '',
     this.birthday = '',
     this.avatarUrl = '',
+    this.avatarSourceUrl = '',
   });
 
   final String username;
   final String gender;
   final String birthday;
   final String avatarUrl;
+  final String avatarSourceUrl;
 
   factory MeProfile.fromJson(Map<String, dynamic> json) {
     return MeProfile(
@@ -56,6 +58,7 @@ class MeProfile {
       gender: json['gender'] as String? ?? '',
       birthday: json['birthday'] as String? ?? '',
       avatarUrl: json['avatar_url'] as String? ?? '',
+      avatarSourceUrl: json['avatar_source_url'] as String? ?? '',
     );
   }
 
@@ -65,6 +68,7 @@ class MeProfile {
       'gender': gender,
       'birthday': birthday,
       'avatar_url': avatarUrl,
+      'avatar_source_url': avatarSourceUrl,
     };
   }
 }

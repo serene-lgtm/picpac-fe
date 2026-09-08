@@ -40,35 +40,30 @@ class _ItemImageFrameState extends State<ItemImageFrame> {
     final imageUrl = _failedUrlCount < imageUrls.length
         ? imageUrls[_failedUrlCount]
         : '';
-    if (imageUrl.isEmpty) {
-      return SizedBox(
-        width: widget.size,
-        height: widget.size,
-        child: _DefaultItemCover(iconSize: widget.iconSize),
-      );
-    }
     return SizedBox(
       width: widget.size,
       height: widget.size,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(widget.borderRadius),
-        child: Image.network(
-          imageUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            if (kDebugMode) {
-              debugPrint(
-                '[picpac.item.image] failed url=$imageUrl error=$error',
-              );
-            }
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && _failedUrlCount < imageUrls.length) {
-                setState(() => _failedUrlCount += 1);
-              }
-            });
-            return _DefaultItemCover(iconSize: widget.iconSize);
-          },
-        ),
+        child: imageUrl.isEmpty
+            ? _DefaultItemCover(iconSize: widget.iconSize)
+            : Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  if (kDebugMode) {
+                    debugPrint(
+                      '[picpac.item.image] failed url=$imageUrl error=$error',
+                    );
+                  }
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted && _failedUrlCount < imageUrls.length) {
+                      setState(() => _failedUrlCount += 1);
+                    }
+                  });
+                  return _DefaultItemCover(iconSize: widget.iconSize);
+                },
+              ),
       ),
     );
   }
@@ -81,12 +76,32 @@ class _DefaultItemCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The bundled 2000 × 2000 asset has large transparent margins.
+    // Crop those margins in the widget so its visible size matches OSS covers.
     return Center(
-      child: Image.asset(
-        'assets/common/gift_box.png',
+      child: SizedBox(
         width: iconSize,
         height: iconSize,
-        fit: BoxFit.contain,
+        child: FittedBox(
+          fit: BoxFit.cover,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(
+            width: 961,
+            height: 1112,
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                Positioned(
+                  left: -304,
+                  top: -553,
+                  width: 2000,
+                  height: 2000,
+                  child: Image.asset('assets/common/gift_box.png'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

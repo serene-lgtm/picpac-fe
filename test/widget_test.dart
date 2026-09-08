@@ -125,6 +125,7 @@ class _FakeItemRepository implements ItemRepository {
     String? categoryId,
     String? userId,
     MultipartFilePart? image,
+    List<MultipartFilePart> photos = const [],
   }) async {
     final category = _categories.firstWhere(
       (category) => category.id == categoryId,
@@ -212,6 +213,7 @@ class _FakeItemRepository implements ItemRepository {
     String? description,
     String? categoryId,
     MultipartFilePart? image,
+    List<MultipartFilePart> photos = const [],
   }) async {
     final index = _items.indexWhere((item) => item.id == itemId);
     final category = _categories.firstWhere(

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../../shared/widgets/fullscreen_image.dart';
 import '../../data/item.dart';
 import '../../data/item_repository.dart';
 import 'add_item_sheet.dart';
@@ -221,13 +222,13 @@ class _ItemDetailSheetState extends State<_ItemDetailSheet> {
         popOnSubmit: false,
         onSubmitted: _handleUpdated,
         onCancel: _cancelEdit,
-        onSubmit: (name, categoryId, description, image) {
+        onSubmit: (name, categoryId, description, photos) {
           return widget.itemRepository.updateItem(
             itemId: _item.id,
             name: name,
             categoryId: categoryId,
             description: description,
-            image: image,
+            photos: photos,
           );
         },
       );
@@ -259,15 +260,12 @@ class _ItemDetailSheetState extends State<_ItemDetailSheet> {
                           Navigator.of(context).pop(ItemDetailResult.updated),
                     ),
                     const SizedBox(height: 20),
-                    Center(
-                      child: ItemImageFrame(
-                        item: item,
-                        size: imageSize,
-                        iconSize: imageSize * 0.62,
-                        borderRadius: 14,
+                    if (item.photos.isNotEmpty) ...[
+                      Center(
+                        child: _ItemPhotoCarousel(item: item, size: imageSize),
                       ),
-                    ),
-                    const SizedBox(height: 24),
+                      const SizedBox(height: 24),
+                    ],
                     Text(
                       item.name,
                       style: Theme.of(context).textTheme.headlineSmall
@@ -328,6 +326,101 @@ class _ItemDetailSheetState extends State<_ItemDetailSheet> {
             right: 42,
             child: ItemSuccessBanner(message: _successMessage!),
           ),
+      ],
+    );
+  }
+}
+
+class _ItemPhotoCarousel extends StatefulWidget {
+  const _ItemPhotoCarousel({required this.item, required this.size});
+
+  final Item item;
+  final double size;
+
+  @override
+  State<_ItemPhotoCarousel> createState() => _ItemPhotoCarouselState();
+}
+
+class _ItemPhotoCarouselState extends State<_ItemPhotoCarousel> {
+  late final PageController _controller;
+  var _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ItemPhotoCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.displayImageUrls.join('\n') !=
+        widget.item.displayImageUrls.join('\n')) {
+      _index = 0;
+      if (_controller.hasClients) _controller.jumpToPage(0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrls = widget.item.photos
+        .map((photo) => photo.bestDisplayUrl)
+        .toList(growable: false);
+    if (imageUrls.isEmpty) return const SizedBox.shrink();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: widget.size,
+          height: widget.size,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: PageView.builder(
+              controller: _controller,
+              itemCount: imageUrls.length,
+              onPageChanged: (index) => setState(() => _index = index),
+              itemBuilder: (context, index) {
+                return ImagePreview(
+                  sourceUrl: widget.item.photos[index].bestSourceUrl,
+                  child: Image.network(
+                    imageUrls[index],
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(child: Text('照片加载失败，点击查看原图'));
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        if (imageUrls.length > 1) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var index = 0; index < imageUrls.length; index += 1)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: index == _index ? 14 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: index == _index
+                        ? const Color(0xFF4DBDBB)
+                        : const Color(0xFFD8DDE2),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ],
     );
   }

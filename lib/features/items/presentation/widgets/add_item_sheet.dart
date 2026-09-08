@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../data/item.dart';
+import '../../../../shared/widgets/fullscreen_image.dart';
 
 class AddItemSheet extends StatefulWidget {
   const AddItemSheet({
@@ -24,7 +26,7 @@ class AddItemSheet extends StatefulWidget {
     String name,
     String categoryId,
     String description,
-    MultipartFilePart? image,
+    List<MultipartFilePart> photos,
   )
   onSubmit;
   final Item? initialItem;
@@ -45,10 +47,17 @@ class _AddItemSheetState extends State<AddItemSheet> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _imagePicker = ImagePicker();
-  XFile? _image;
+  late List<ItemPhoto> _existingPhotos;
+  final List<_PendingItemPhoto> _newPhotos = [];
   String? _selectedCategoryId;
   bool _submitting = false;
+  bool _pickingPhotos = false;
   String? _error;
+
+  static const _maxPhotos = 6;
+  static const _photoMaxDimension = 1600.0;
+  static const _photoQuality = 82;
+  static const _previewCacheSize = 156;
 
   @override
   void dispose() {
@@ -68,6 +77,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
   void initState() {
     super.initState();
     final item = widget.initialItem;
+    _existingPhotos = item?.photos ?? const [];
     if (item != null) {
       _nameController.text = item.name;
       _descriptionController.text = item.description;
@@ -76,7 +86,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _submitting) {
+    if (!_formKey.currentState!.validate() || _submitting || _pickingPhotos) {
       return;
     }
     setState(() {
@@ -88,14 +98,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
         _nameController.text.trim(),
         _selectedCategoryId ?? '',
         _descriptionController.text.trim(),
-        _image == null
-            ? null
-            : MultipartFilePart(
-                fieldName: 'image',
-                fileName: _image!.name,
-                contentType: _contentTypeFor(_image!.name),
-                bytes: _image!.readAsBytes(),
-              ),
+        await _photoParts(),
       );
       if (mounted) {
         if (widget.popOnSubmit) {
@@ -116,49 +119,164 @@ class _AddItemSheetState extends State<AddItemSheet> {
   }
 
   Future<void> _pickImage() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.black12,
-                    borderRadius: BorderRadius.circular(999),
+    if (_photoCount >= _maxPhotos || _pickingPhotos || _submitting) return;
+    setState(() => _pickingPhotos = true);
+    try {
+      final source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (context) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.black12,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                ListTile(
-                  leading: const Icon(Icons.photo_library_outlined),
-                  title: const Text('从相册选择'),
-                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.photo_camera_outlined),
-                  title: const Text('拍照'),
-                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  ListTile(
+                    leading: const Icon(Icons.photo_library_outlined),
+                    title: const Text('从相册选择'),
+                    onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.photo_camera_outlined),
+                    title: const Text('拍照'),
+                    onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                  ),
+                ],
+              ),
             ),
-          ),
+          );
+        },
+      );
+      if (source == null || !mounted) return;
+      final remaining = _maxPhotos - _photoCount;
+      final List<XFile> images;
+      if (source == ImageSource.gallery && remaining > 1) {
+        images = await _imagePicker.pickMultiImage(
+          maxWidth: _photoMaxDimension,
+          maxHeight: _photoMaxDimension,
+          imageQuality: _photoQuality,
+          requestFullMetadata: false,
+          limit: remaining,
         );
-      },
-    );
-    if (source == null) return;
-    final image = await _imagePicker.pickImage(source: source);
-    if (image != null && mounted) {
-      setState(() => _image = image);
+      } else {
+        final image = await _imagePicker.pickImage(
+          source: source,
+          maxWidth: _photoMaxDimension,
+          maxHeight: _photoMaxDimension,
+          imageQuality: _photoQuality,
+          requestFullMetadata: false,
+        );
+        images = image == null ? [] : [image];
+      }
+      for (final image in images.take(remaining)) {
+        final bytes = await image.readAsBytes();
+        if (!mounted) return;
+        setState(() {
+          _newPhotos.add(
+            _PendingItemPhoto(
+              fileName: image.name,
+              contentType: _contentTypeFor(image.name),
+              bytes: bytes,
+            ),
+          );
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = '照片添加失败，请重试');
+      }
+    } finally {
+      if (mounted) setState(() => _pickingPhotos = false);
     }
+  }
+
+  int get _photoCount => _existingPhotos.length + _newPhotos.length;
+
+  bool get _photoListChanged {
+    final initialPhotos = widget.initialItem?.photos ?? const <ItemPhoto>[];
+    if (_newPhotos.isNotEmpty) return true;
+    if (_existingPhotos.length != initialPhotos.length) return true;
+    for (var index = 0; index < initialPhotos.length; index += 1) {
+      if (_existingPhotos[index].id != initialPhotos[index].id) return true;
+    }
+    return false;
+  }
+
+  Future<List<MultipartFilePart>> _photoParts() async {
+    if (!_photoListChanged) return const [];
+    if (_photoCount == 0 && (widget.initialItem?.photos.isNotEmpty ?? false)) {
+      throw StateError('当前接口暂不支持清空所有照片，请至少保留一张照片或新增一张照片');
+    }
+    final parts = <MultipartFilePart>[];
+    for (final photo in _existingPhotos) {
+      final url = photo.bestSourceUrl;
+      if (url.isEmpty) continue;
+      parts.add(
+        MultipartFilePart(
+          fieldName: 'photos',
+          fileName: _fileNameForRemotePhoto(photo),
+          contentType: _contentTypeFor(url),
+          bytes: _readRemotePhoto(url),
+        ),
+      );
+    }
+    for (final photo in _newPhotos) {
+      parts.add(
+        MultipartFilePart(
+          fieldName: 'photos',
+          fileName: photo.fileName,
+          contentType: photo.contentType,
+          bytes: Future.value(photo.bytes),
+        ),
+      );
+    }
+    return parts;
+  }
+
+  Future<List<int>> _readRemotePhoto(String url) async {
+    final client = HttpClient();
+    try {
+      final request = await client.getUrl(Uri.parse(url));
+      final response = await request.close();
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw HttpException('图片读取失败', uri: Uri.parse(url));
+      }
+      final bytes = <int>[];
+      await for (final chunk in response) {
+        bytes.addAll(chunk);
+      }
+      return bytes;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  String _fileNameForRemotePhoto(ItemPhoto photo) {
+    final extension = _extensionFor(photo.bestSourceUrl);
+    final id = photo.id.isEmpty ? 'existing' : photo.id;
+    return '$id$extension';
+  }
+
+  String _extensionFor(String fileNameOrUrl) {
+    final lower = fileNameOrUrl.toLowerCase().split('?').first;
+    if (lower.endsWith('.png')) return '.png';
+    if (lower.endsWith('.webp')) return '.webp';
+    if (lower.endsWith('.gif')) return '.gif';
+    if (lower.endsWith('.jpeg')) return '.jpeg';
+    return '.jpg';
   }
 
   String _contentTypeFor(String fileName) {
@@ -318,40 +436,31 @@ class _AddItemSheetState extends State<AddItemSheet> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                GestureDetector(
-                  onTap: _submitting ? null : _pickImage,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 78,
-                        height: 78,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFFBFC5CC),
-                            width: 1.2,
-                          ),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: _image == null
-                            ? _ExistingImageOrPicker(item: widget.initialItem)
-                            : Image.file(File(_image!.path), fit: BoxFit.cover),
-                      ),
-                      if (widget.initialItem == null) ...[
-                        const SizedBox(height: 8),
-                        const Text(
-                          '照片（选填）',
-                          style: TextStyle(
-                            color: Color(0xFF9CA4AE),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                _PhotoPickerGrid(
+                  existingPhotos: _existingPhotos,
+                  newPhotos: _newPhotos,
+                  enabled: !_submitting && !_pickingPhotos,
+                  maxPhotos: _maxPhotos,
+                  onAdd: _pickImage,
+                  onRemoveExisting: (index) {
+                    setState(() {
+                      _existingPhotos = [
+                        ..._existingPhotos.take(index),
+                        ..._existingPhotos.skip(index + 1),
+                      ];
+                    });
+                  },
+                  onRemoveNew: (index) {
+                    setState(() => _newPhotos.removeAt(index));
+                  },
                 ),
+                if (widget.initialItem == null) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    '照片（选填）',
+                    style: TextStyle(color: Color(0xFF9CA4AE), fontSize: 13),
+                  ),
+                ],
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(
@@ -367,7 +476,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
                     width: 168,
                     height: 49,
                     child: FilledButton(
-                      onPressed: _submitting ? null : _submit,
+                      onPressed: _submitting || _pickingPhotos ? null : _submit,
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFF4DBDBB),
                         foregroundColor: Colors.white,
@@ -427,14 +536,132 @@ class _AddItemSheetState extends State<AddItemSheet> {
   }
 }
 
-class _ExistingImageOrPicker extends StatelessWidget {
-  const _ExistingImageOrPicker({required this.item});
+class _PhotoPickerGrid extends StatelessWidget {
+  const _PhotoPickerGrid({
+    required this.existingPhotos,
+    required this.newPhotos,
+    required this.enabled,
+    required this.maxPhotos,
+    required this.onAdd,
+    required this.onRemoveExisting,
+    required this.onRemoveNew,
+  });
 
-  final Item? item;
+  final List<ItemPhoto> existingPhotos;
+  final List<_PendingItemPhoto> newPhotos;
+  final bool enabled;
+  final int maxPhotos;
+  final VoidCallback onAdd;
+  final ValueChanged<int> onRemoveExisting;
+  final ValueChanged<int> onRemoveNew;
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = item?.bestImageUrl ?? '';
+    final total = existingPhotos.length + newPhotos.length;
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (var index = 0; index < existingPhotos.length; index += 1)
+          _PhotoTile(
+            enabled: enabled,
+            onRemove: () => onRemoveExisting(index),
+            child: _RemotePhotoImage(photo: existingPhotos[index]),
+          ),
+        for (var index = 0; index < newPhotos.length; index += 1)
+          _PhotoTile(
+            enabled: enabled,
+            onRemove: () => onRemoveNew(index),
+            child: Image.memory(
+              newPhotos[index].bytes,
+              fit: BoxFit.cover,
+              cacheWidth: _AddItemSheetState._previewCacheSize,
+              cacheHeight: _AddItemSheetState._previewCacheSize,
+              gaplessPlayback: true,
+            ),
+          ),
+        if (total < maxPhotos) _AddPhotoTile(enabled: enabled, onTap: onAdd),
+      ],
+    );
+  }
+}
+
+class _PendingItemPhoto {
+  const _PendingItemPhoto({
+    required this.fileName,
+    required this.contentType,
+    required this.bytes,
+  });
+
+  final String fileName;
+  final String contentType;
+  final Uint8List bytes;
+}
+
+class _PhotoTile extends StatelessWidget {
+  const _PhotoTile({
+    required this.child,
+    required this.enabled,
+    required this.onRemove,
+  });
+
+  final Widget child;
+  final bool enabled;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 78,
+      height: 78,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFBFC5CC), width: 1.2),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: child,
+            ),
+          ),
+          Positioned(
+            right: -7,
+            top: -7,
+            child: GestureDetector(
+              onTap: enabled ? onRemove : null,
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFF5757),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RemotePhotoImage extends StatelessWidget {
+  const _RemotePhotoImage({required this.photo});
+
+  final ItemPhoto photo;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = photo.bestDisplayUrl;
     if (imageUrl.isEmpty) {
       return const Icon(
         Icons.photo_camera_outlined,
@@ -442,17 +669,92 @@ class _ExistingImageOrPicker extends StatelessWidget {
         size: 30,
       );
     }
-    return Image.network(
-      imageUrl,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        return const Icon(
-          Icons.photo_camera_outlined,
-          color: Color(0xFF4DBDBB),
-          size: 30,
-        );
-      },
+    return ImagePreview(
+      sourceUrl: photo.bestSourceUrl,
+      child: Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        cacheWidth: _AddItemSheetState._previewCacheSize,
+        cacheHeight: _AddItemSheetState._previewCacheSize,
+        gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) {
+          return const Icon(
+            Icons.photo_camera_outlined,
+            color: Color(0xFF4DBDBB),
+            size: 30,
+          );
+        },
+      ),
     );
+  }
+}
+
+class _AddPhotoTile extends StatelessWidget {
+  const _AddPhotoTile({required this.enabled, required this.onTap});
+
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: CustomPaint(
+        painter: _DashedPhotoBorderPainter(
+          color: enabled ? const Color(0xFFBFC5CC) : const Color(0xFFE1E4EA),
+          radius: 12,
+        ),
+        child: Container(
+          width: 78,
+          height: 78,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF7F8FA),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            Icons.add_photo_alternate_outlined,
+            color: enabled ? const Color(0xFF4DBDBB) : const Color(0xFFB7BBC3),
+            size: 30,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedPhotoBorderPainter extends CustomPainter {
+  const _DashedPhotoBorderPainter({required this.color, required this.radius});
+
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          (Offset.zero & size).deflate(0.75),
+          Radius.circular(radius),
+        ),
+      );
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final next = distance + 5;
+        canvas.drawPath(metric.extractPath(distance, next), paint);
+        distance = next + 4;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedPhotoBorderPainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.radius != radius;
   }
 }
 

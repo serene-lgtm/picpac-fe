@@ -16,6 +16,7 @@ abstract class ItemRepository {
     String? categoryId,
     String? userId,
     MultipartFilePart? image,
+    List<MultipartFilePart> photos = const [],
   });
 
   Future<Item> updateItem({
@@ -24,6 +25,7 @@ abstract class ItemRepository {
     String? description,
     String? categoryId,
     MultipartFilePart? image,
+    List<MultipartFilePart> photos = const [],
   });
 
   Future<List<ItemDraft>> generateItemDrafts(String text);
@@ -89,6 +91,7 @@ class ApiItemRepository implements ItemRepository {
     String? categoryId,
     String? userId,
     MultipartFilePart? image,
+    List<MultipartFilePart> photos = const [],
   }) async {
     final fields = <String, String>{
       'name': name,
@@ -102,6 +105,7 @@ class ApiItemRepository implements ItemRepository {
       '/api/v1/item',
       fields: fields,
       file: image,
+      files: photos,
     );
     return _itemFromResponse(response);
   }
@@ -113,6 +117,7 @@ class ApiItemRepository implements ItemRepository {
     String? description,
     String? categoryId,
     MultipartFilePart? image,
+    List<MultipartFilePart> photos = const [],
   }) async {
     final fields = <String, String>{
       'name': name,
@@ -123,6 +128,7 @@ class ApiItemRepository implements ItemRepository {
       '/api/v1/item/$itemId',
       fields: fields,
       file: image,
+      files: photos,
     );
     return _itemFromResponse(response);
   }

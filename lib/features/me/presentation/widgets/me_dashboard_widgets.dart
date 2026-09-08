@@ -116,6 +116,7 @@ class _MeProfileGlassTile extends StatelessWidget {
             Positioned(
               child: MeAvatar(
                 avatarUrl: user.profile.avatarUrl,
+                avatarSourceUrl: user.profile.avatarSourceUrl,
                 size: avatarSize,
               ),
             ),

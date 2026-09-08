@@ -138,6 +138,7 @@ class ApiClient {
     String path, {
     required Map<String, String> fields,
     MultipartFilePart? file,
+    List<MultipartFilePart> files = const [],
     bool requiresAuth = true,
   }) {
     return _sendMultipart(
@@ -145,6 +146,7 @@ class ApiClient {
       path,
       fields: fields,
       file: file,
+      files: files,
       requiresAuth: requiresAuth,
     );
   }
@@ -153,6 +155,7 @@ class ApiClient {
     String path, {
     required Map<String, String> fields,
     MultipartFilePart? file,
+    List<MultipartFilePart> files = const [],
     bool requiresAuth = true,
   }) {
     return _sendMultipart(
@@ -160,6 +163,7 @@ class ApiClient {
       path,
       fields: fields,
       file: file,
+      files: files,
       requiresAuth: requiresAuth,
     );
   }
@@ -169,6 +173,7 @@ class ApiClient {
     String path, {
     required Map<String, String> fields,
     MultipartFilePart? file,
+    List<MultipartFilePart> files = const [],
     required bool requiresAuth,
   }) {
     return _sendWithRefresh(
@@ -194,7 +199,8 @@ class ApiClient {
           request.add(utf8.encode(entry.value));
           request.write('\r\n');
         }
-        if (file != null) {
+        final allFiles = [if (file != null) file, ...files];
+        for (final file in allFiles) {
           request.write('--$boundary\r\n');
           request.write(
             'Content-Disposition: form-data; name="${file.fieldName}"; '
