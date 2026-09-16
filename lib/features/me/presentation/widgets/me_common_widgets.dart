@@ -221,6 +221,8 @@ class MePrimaryButton extends StatelessWidget {
     this.danger = false,
     this.width,
     this.height = 52,
+    this.style,
+    this.fontWeight = FontWeight.w800,
   });
 
   final String label;
@@ -229,6 +231,8 @@ class MePrimaryButton extends StatelessWidget {
   final bool danger;
   final double? width;
   final double height;
+  final ButtonStyle? style;
+  final FontWeight fontWeight;
 
   @override
   Widget build(BuildContext context) {
@@ -237,16 +241,18 @@ class MePrimaryButton extends StatelessWidget {
       height: height,
       child: FilledButton(
         onPressed: loading ? null : onPressed,
-        style: FilledButton.styleFrom(
-          backgroundColor: danger ? const Color(0xFFFF565B) : meTeal,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0xFFB9D0CC),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(height / 2),
-          ),
-          elevation: 10,
-          shadowColor: (danger ? const Color(0xFFFF565B) : meTeal).withValues(
-            alpha: 0.28,
+        style: (style ?? const ButtonStyle()).merge(
+          FilledButton.styleFrom(
+            backgroundColor: danger ? const Color(0xFFFF565B) : meTeal,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: const Color(0xFFB9D0CC),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(height / 2),
+            ),
+            elevation: 10,
+            shadowColor: (danger ? const Color(0xFFFF565B) : meTeal).withValues(
+              alpha: 0.28,
+            ),
           ),
         ),
         child: loading
@@ -260,10 +266,7 @@ class MePrimaryButton extends StatelessWidget {
               )
             : Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: fontWeight),
               ),
       ),
     );
@@ -331,8 +334,19 @@ class MeConfirmDialog extends StatelessWidget {
               onPressed: onConfirm,
               danger: danger,
               loading: loading,
-              width: 160,
-              height: 44,
+              width: danger ? 158 : 160,
+              height: danger ? 50 : 44,
+              fontWeight: danger ? FontWeight.w700 : FontWeight.w800,
+              style: danger
+                  ? FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF5757),
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(26),
+                      ),
+                    ).copyWith(elevation: const WidgetStatePropertyAll(0))
+                  : null,
             ),
             const SizedBox(height: 16),
             TextButton(

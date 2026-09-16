@@ -36,24 +36,35 @@ OSS object key 约定：
 - Item default cover 需要预先上传到 OSS：`items/default/cover.jpg`
 - 默认头像不区分 source/display；当用户未上传头像时，`avatar_url` 和 `avatar_source_url` 都会返回该默认头像的 signed URL。
 - 默认 item cover 不写入 item 的 `photos`；当 item 没有照片时，`cover_image_url` 会返回该默认 cover 的 signed URL，`photos` 仍返回空数组。
-- Item 列表封面点击进入物品详情，不打开原图预览。详情图片区域只按 `photos` 展示 `image_url`，点击照片后全屏查看对应的 `source_image_url`；`photos` 为空时隐藏图片区域和轮播指示点。默认封面不展示在详情中，照片加载失败也不回退到默认封面。
 
 ## Formal APIs
+
+认证接口失败响应沿用 `{"error":"<message>"}` 格式，前端优先按 HTTP 状态码处理。
+验证码接口的公共错误如下，响应不会包含阿里云内部错误信息：
+
+| HTTP | `error` | 含义 |
+|---|---|---|
+| `400` | `invalid input` | JSON 格式错误 |
+| `400` | `phone is required` | 缺少手机号 |
+| `400` | `phone is invalid` | 手机号格式错误 |
+| `400` | `code is required` | 缺少验证码，仅登录接口 |
+| `400` | `phone code is invalid` | 验证码格式错误、错误或失效，仅登录接口 |
+| `429` | `phone code send too frequently` | 发送过于频繁，仅发送接口 |
+| `502` | `phone verification service is unavailable` | 验证码供应商暂时不可用 |
 
 ### Send Phone Code
 
 `POST /api/v1/auth/phone/code`
 
 用途：
-- 发送手机号登录验证码
-- 当前开发配置可使用固定验证码，生产环境必须接真实短信服务
-- 同一手机号会受到重发间隔和每日发送次数限制
+- 发送手机号验证码，可用于登录及已登录用户重置密码
+- `prod` 调用阿里云号码认证；`dev` 直接成功且不发送短信
 
 请求类型：
 - `application/json`
 
 请求字段：
-- `phone`: string，必填。中国大陆11位手机号会标准化为 `+86` 格式；也支持传入带 `+` 的国际号码
+- `phone`: string，必填。仅支持中国大陆 11 位手机号或带 `+86` 前缀的同一号码，后端统一存为 `+86` 格式
 
 请求示例：
 
@@ -71,26 +82,28 @@ OSS object key 约定：
 }
 ```
 
+`sent: true` 表示阿里云已接受发送请求，不代表运营商已确认短信送达。
+
 失败响应：
-- `400`: 缺少 `phone`，或手机号格式非法
-- `429`: 验证码发送过于频繁
-- `500`: 创建验证码或发送验证码失败
+- 见上方公共错误表；本接口可能返回 `400`、`429`、`502`
 
-### Phone Login
+### Phone Code Login
 
-`POST /api/v1/auth/phone/login`
+`POST /api/v1/auth/phone/code/login`
 
 用途：
 - 使用手机号和验证码登录
+- `dev` 使用 `auth.phone_code.dev_fixed_code`（默认 `123456`）；`prod` 使用短信中的验证码
 - 首次手机号登录会自动创建 `User` 和 `AuthIdentity(provider=phone)`
 - 已存在手机号会复用原 User
+- 旧路径 `POST /api/v1/auth/phone/login` 暂时保留兼容，语义与本接口一致
 
 请求类型：
 - `application/json`
 
 请求字段：
-- `phone`: string，必填
-- `code`: string，必填
+- `phone`: string，必填。仅支持中国大陆 11 位手机号或带 `+86` 前缀的同一号码
+- `code`: string，必填。6 位 ASCII 数字；dev 使用 `auth.phone_code.dev_fixed_code`，prod 使用实际短信中的验证码
 
 请求示例：
 
@@ -122,12 +135,70 @@ OSS object key 约定：
 ```
 
 失败响应：
-- `400`: 缺少 `phone`、缺少 `code`、手机号格式非法、验证码非法或超过尝试次数
+- 验证码相关错误见上方公共错误表；本接口可能返回 `400`、`502`
 - `404`: 已绑定身份对应的 User 不存在
 - `409`: 创建登录身份发生冲突且无法恢复
 - `500`: 创建 User、AuthIdentity、token 或生成头像访问 URL 失败
 
+### Phone Password Login
+
+`POST /api/v1/auth/phone/password/login`
+
+用途：
+- 使用手机号和登录密码登录
+- 该接口不会自动创建用户；用户必须已经通过 `POST /api/v1/auth/password/setup` 设置过密码
+- 后端通过 `AuthIdentity(provider=phone, identifier=normalized_phone)` 找到对应 user，再校验 `user_password_credentials` 中的 password hash
+- 密码登录成功后会清空 `failed_attempt_count` 和 `locked_until`，并更新 `last_used_at`
+- 密码登录失败后会增加 `failed_attempt_count`；连续失败达到阈值后会设置 `locked_until`
+- `locked_until` 过期后再次尝试时，会重新按第 1 次失败开始计数，不会延续上一个锁定周期前的失败次数
+- 默认连续失败 5 次锁定 15 分钟
+
+请求类型：
+- `application/json`
+
+请求字段：
+- `phone`: string，必填。中国大陆 11 位手机号会标准化为 `+86` 格式
+- `password`: string，必填
+
+请求示例：
+
+```json
+{
+  "phone": "13800138000",
+  "password": "Trip2026Pass"
+}
+```
+
+成功响应：
+
+```json
+{
+  "access_token": "...",
+  "refresh_token": "...",
+  "user": {
+    "id": "6821c0c1f1b2f4d5a6b7c8d1",
+    "profile": {
+      "username": "user8613800138000",
+      "gender": "",
+      "birthday": "",
+      "avatar_url": "https://picpac.oss-cn-shanghai.aliyuncs.com/users/default/avatar.png?Expires=1783588103&OSSAccessKeyId=...&Signature=...",
+      "avatar_source_url": "https://picpac.oss-cn-shanghai.aliyuncs.com/users/default/avatar.png?Expires=1783588103&OSSAccessKeyId=...&Signature=..."
+    },
+    "status": "created"
+  }
+}
+```
+
+失败响应：
+- `400`: 缺少 `phone`、缺少 `password`，或手机号格式非法
+- `401`: 手机号或密码错误；手机号不存在、未设置密码、密码错误都会返回统一错误
+- `403`: 密码登录已锁定，或用户已禁用
+- `404`: 已绑定身份对应的 User 不存在
+- `500`: 查询 AuthIdentity、查询/更新 password credential、创建 token 或生成头像访问 URL 失败
+
 ### Refresh Auth Token
+
+当前前端会话策略：受保护接口返回登录失效的 `401` 时，清理本地登录信息及页面栈并返回登录页，不自动刷新或重试。修改密码接口的“当前密码错误”仍在表单内处理；明确的 access token 失效错误才触发登出。公开登录接口的凭据错误不触发全局登出。
 
 `POST /api/v1/auth/refresh`
 
@@ -182,6 +253,142 @@ OSS object key 约定：
 - `400`: 缺少 `refresh_token`
 - `401`: refresh token 非法
 - `500`: revoke refresh token 失败
+
+### Auth Security
+
+`GET /api/v1/auth/security`
+
+用途：
+- 查询当前登录用户的账号安全状态
+- 前端账号安全页可用该接口展示手机号和登录密码是否已设置
+- 该接口只返回展示所需状态，不返回 password hash、失败次数、锁定时间等内部安全字段
+
+请求头：
+- `Authorization: Bearer <access_token>`
+
+请求体：
+- 无
+
+成功响应：
+
+```json
+{
+  "phone": "138****8000",
+  "password_setup": true
+}
+```
+
+响应字段：
+- `phone`: string，当前用户手机号的脱敏展示值；如果当前用户没有绑定手机号，则返回空字符串
+- `password_setup`: boolean，当前用户是否已经设置登录密码
+
+失败响应：
+- `401`: 缺少 access token，access token 非法或已过期
+- `403`: 用户已禁用
+- `404`: User 不存在
+- `500`: 查询 AuthIdentity 或 password credential 失败
+
+### Setup Password
+
+`POST /api/v1/auth/password/setup`
+
+用途：
+- 当前登录用户第一次设置手机号登录密码
+- 该接口只用于首次设置；如果用户已经设置过密码，会返回 `409`
+- 前端传入手机号作为当前账号确认字段，后端仍以 access token 中的 user id 作为当前用户来源
+- 后端通过 `AuthIdentity(provider=phone, identifier=normalized_phone)` 校验该手机号属于当前登录用户
+- 后端只保存 password hash，不保存明文密码
+
+请求类型：
+- `application/json`
+
+请求头：
+- `Authorization: Bearer <access_token>`
+
+请求字段：
+- `phone`: string，必填。中国大陆 11 位手机号会标准化为 `+86` 格式；必须属于当前登录用户
+- `password`: string，必填
+
+密码规则：
+- 长度 8-32 个字符
+- 只能包含大小写英文字母、数字和以下特殊字符：`_#!@$%^&*()+=-`
+- 必须至少包含以下 4 类中的任意 3 类：大写字母、小写字母、数字、特殊字符
+- 不能有首尾空格
+- 不允许中文、空格、emoji 或未列出的其他特殊字符
+
+请求示例：
+
+```json
+{
+  "phone": "13800138000",
+  "password": "Trip2026Pass"
+}
+```
+
+成功响应：
+
+```json
+{
+  "setup": true
+}
+```
+
+失败响应：
+- `400`: 缺少 `phone`、缺少 `password`、手机号格式非法，或密码不符合规则
+- `401`: 缺少 access token，access token 非法或已过期
+- `403`: 手机号不属于当前登录用户，或用户已禁用
+- `404`: User 不存在
+- `409`: 当前用户已经设置过密码
+- `500`: 查询 AuthIdentity、查询/创建 password credential 或 hash password 失败
+
+### Change Password
+
+`PUT /api/v1/auth/password`
+
+用途：
+- 当前登录用户修改已设置的手机号登录密码
+- 需要输入当前密码 `old_password`，不能通过该接口找回密码
+- 新密码必须符合 Setup Password 中相同的密码规则
+- 新密码不能和当前密码相同
+- 修改成功后，后端会 revoke 当前用户所有未失效的 refresh token
+- access token 当前不落库，后端不会精确撤销已签发且未过期的 access token
+- 前端在收到成功响应后必须主动清空本地 access token 和 refresh token，并跳转登录页要求用户重新登录
+- 修改密码不会更新 `last_used_at`；该字段只表示上次成功使用密码登录的时间
+- 修改成功会清空 `failed_attempt_count` 和 `locked_until`
+
+请求类型：
+- `application/json`
+
+请求头：
+- `Authorization: Bearer <access_token>`
+
+请求字段：
+- `old_password`: string，必填，当前登录密码
+- `new_password`: string，必填，新登录密码
+
+请求示例：
+
+```json
+{
+  "old_password": "Trip2026Pass",
+  "new_password": "NewTrip2027"
+}
+```
+
+成功响应：
+
+```json
+{
+  "changed": true
+}
+```
+
+失败响应：
+- `400`: 缺少 `old_password`、缺少 `new_password`、新密码不符合规则，或新密码与当前密码相同
+- `401`: 缺少 access token，access token 非法或已过期，或 `old_password` 错误
+- `403`: 用户已禁用
+- `404`: User 不存在，或当前用户尚未设置密码
+- `500`: 查询/更新 password credential、hash password 或 revoke refresh token 失败
 
 ### Delete Account
 
@@ -1467,3 +1674,41 @@ OSS object key 约定：
 
 后续仍计划补充以下正式接口：
 - User authentication
+
+### Reset Password With Phone Code
+
+`POST /api/v1/auth/password/reset`
+
+需要 `Authorization: Bearer <access_token>`。用于已登录用户重置已设置的密码。
+
+请求 JSON：
+
+```json
+{
+    "phone": "13800138000",
+    "code": "123456",
+    "new_password": "NewPass2026!"
+}
+```
+
+- `phone`：必填，完整大陆 11 位手机号或 `+86` 格式，必须属于当前用户；不能提交脱敏号码。
+- `code`：必填，6 位 ASCII 数字。原样复用现有发送验证码接口，不新增用途参数。
+- `new_password`：必填，沿用现有密码强度规则，且必须与旧密码不同。
+- 用户身份来自 access token，不接受请求体指定用户身份。
+- dev 使用 `auth.phone_code.dev_fixed_code`（默认 `123456`），无需先发送；prod 使用现有阿里云短信核验。
+- 登录和重置共用验证码：有效登录验证码可以用于重置，反之亦然；重复发送沿用现有阿里云覆盖策略。
+- 不新增验证码预验证接口或 reset token。前端两页流程需保留手机号和验证码，到最终设置页面一次提交；验证码错误在最终提交时返回。
+- 不自动注册用户或首次创建密码凭证。未设置密码继续使用现有 setup 接口。
+
+成功响应：`{"reset":true}`。密码更新、清空登录失败次数/锁定状态及撤销已有 refresh token 在同一 MongoDB 事务内完成（需 replica set 或支持事务的集群）。不自动登录；前端清理本地登录信息并返回登录页。旧 access token 仍自然过期。
+
+失败响应：
+- `400`：请求形态、手机号、验证码或密码非法；验证码核验不通过；新旧密码相同。
+- `401`：未登录或 access token 无效。
+- `403`：用户禁用或手机号不属于当前用户。
+- `404`：用户不存在或尚未设置密码。
+- `409`：核验期间密码已被其他请求修改，需要重新开始重置。
+- `502`：阿里云核验不可用；不会回退使用固定码。
+- `500`：数据库或密码处理失败；事务失败时不保留部分修改。验证码可能已经核验，应允许用户重新获取验证码后重试。
+
+本接口不额外承诺短信验证码一次性消费，沿用阿里云核验生命周期；不会在 MongoDB 存储验证码。并发条件更新可阻止基于同一旧密码的覆盖，但不等同于验证码防重放。

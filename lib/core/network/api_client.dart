@@ -10,6 +10,7 @@ class ApiClient {
     HttpClient? httpClient,
     this.accessTokenProvider,
     this.onUnauthorized,
+    this.onSessionExpired,
     this.timeout = const Duration(seconds: 20),
   }) : _baseUri = Uri.parse(baseUrl),
        _httpClient = httpClient ?? HttpClient();
@@ -18,6 +19,7 @@ class ApiClient {
   final HttpClient _httpClient;
   final String? Function()? accessTokenProvider;
   final Future<bool> Function()? onUnauthorized;
+  final Future<void> Function(String? accessToken)? onSessionExpired;
   final Duration timeout;
 
   Future<bool>? _refreshInFlight;
@@ -66,9 +68,11 @@ class ApiClient {
     String path, {
     required Map<String, dynamic> body,
     bool requiresAuth = true,
+    bool refreshOnUnauthorized = true,
   }) {
     return _sendWithRefresh(
       requiresAuth: requiresAuth,
+      refreshOnUnauthorized: refreshOnUnauthorized,
       send: () async {
         final uri = _buildUri(path);
         final request = await _httpClient.putUrl(uri).timeout(timeout);
@@ -219,12 +223,23 @@ class ApiClient {
 
   Future<Map<String, dynamic>> _sendWithRefresh({
     required bool requiresAuth,
+    bool refreshOnUnauthorized = true,
     required Future<HttpClientResponse> Function() send,
   }) async {
+    final requestToken = accessTokenProvider?.call();
     var response = await send();
     var body = await utf8.decodeStream(response);
 
-    if (_shouldRefresh(response.statusCode, requiresAuth)) {
+    if (requiresAuth &&
+        response.statusCode == 401 &&
+        (refreshOnUnauthorized || _isAccessTokenError(body)) &&
+        onSessionExpired != null) {
+      await onSessionExpired!(requestToken);
+      return _decodeObjectBody(body, response.statusCode);
+    }
+
+    if (refreshOnUnauthorized &&
+        _shouldRefresh(response.statusCode, requiresAuth)) {
       final refreshed = await _refreshAuthorization();
       if (refreshed) {
         response = await send();
@@ -233,6 +248,17 @@ class ApiClient {
     }
 
     return _decodeObjectBody(body, response.statusCode);
+  }
+
+  bool _isAccessTokenError(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      return decoded is Map &&
+          decoded['error'] is String &&
+          (decoded['error'] as String).startsWith('access token ');
+    } catch (_) {
+      return false;
+    }
   }
 
   bool _shouldRefresh(int statusCode, bool requiresAuth) {

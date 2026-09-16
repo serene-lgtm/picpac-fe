@@ -8,7 +8,6 @@ import '../features/auth/presentation/pages/login_page.dart';
 import '../features/checklists/data/checklist_repository.dart';
 import '../features/items/data/item_repository.dart';
 import '../features/items/presentation/pages/items_page.dart';
-import '../features/me/data/me.dart';
 import '../features/me/data/me_repository.dart';
 import '../features/me/presentation/pages/me_page.dart';
 import '../features/packs/data/pack_repository.dart';
@@ -42,6 +41,7 @@ class PicpacApp extends StatefulWidget {
 }
 
 class _PicpacAppState extends State<PicpacApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
   AuthSession? _session;
   bool _bootstrapping = true;
   late final ApiClient _apiClient;
@@ -59,7 +59,7 @@ class _PicpacAppState extends State<PicpacApp> {
     _apiClient = ApiClient(
       baseUrl: ApiConfig.baseUrl,
       accessTokenProvider: () => _session?.accessToken,
-      onUnauthorized: _refreshSessionSilently,
+      onSessionExpired: _handleSessionExpired,
     );
     _authRepository =
         widget._authRepositoryOverride ?? ApiAuthRepository(_apiClient);
@@ -83,32 +83,10 @@ class _PicpacAppState extends State<PicpacApp> {
     });
   }
 
-  Future<bool> _refreshSessionSilently() async {
-    final current = _session;
-    if (current == null || current.refreshToken.trim().isEmpty) {
-      await _resetSession();
-      return false;
-    }
-
-    try {
-      final refreshed = await _authRepository.refreshSession(
-        refreshToken: current.refreshToken,
-      );
-      final nextSession = AuthSession(
-        accessToken: refreshed.accessToken,
-        refreshToken: refreshed.refreshToken,
-        user: _resolvedUser(refreshed.user, fallback: current.user),
-      );
-      await _sessionStore.write(nextSession);
-      if (!mounted) return false;
-      setState(() {
-        _session = nextSession;
-      });
-      return true;
-    } catch (_) {
-      await _resetSession();
-      return false;
-    }
+  Future<void> _handleSessionExpired(String? requestToken) async {
+    // Ignore late responses from requests belonging to a previous session.
+    if (_session == null || _session!.accessToken != requestToken) return;
+    await _resetSession();
   }
 
   Future<void> _handleLoggedIn(AuthSession session) async {
@@ -130,22 +108,30 @@ class _PicpacAppState extends State<PicpacApp> {
   }
 
   Future<void> _resetSession() async {
-    await _sessionStore.clear();
     if (!mounted) return;
     setState(() {
       _session = null;
     });
+    _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    await _sessionStore.clear();
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: '物品',
       debugShowCheckedModeBanner: false,
       theme: PicpacTheme.light(),
       builder: (context, child) {
         if (_session == null || child == null) return child ?? const SizedBox();
-        return MeSessionScope(onLogout: _handleLoggedOut, child: child);
+        return MeSessionScope(
+          authRepository: _authRepository,
+          onLogout: _handleLoggedOut,
+          onPasswordChanged: _resetSession,
+          phone: _session!.user.phone,
+          child: child,
+        );
       },
       home: _bootstrapping
           ? const _AppBootstrapPage()
@@ -162,11 +148,6 @@ class _PicpacAppState extends State<PicpacApp> {
             ),
     );
   }
-}
-
-MeUser _resolvedUser(MeUser user, {required MeUser fallback}) {
-  if (user.id.isEmpty) return fallback;
-  return user;
 }
 
 class _AppBootstrapPage extends StatelessWidget {

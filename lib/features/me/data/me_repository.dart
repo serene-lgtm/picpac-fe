@@ -1,8 +1,24 @@
 import '../../../core/network/api_client.dart';
 import 'me.dart';
+import 'account_security.dart';
 
 abstract class MeRepository {
   Future<MeUser> getMe();
+
+  Future<AccountSecurity> getSecurity();
+
+  Future<void> setupPassword({required String phone, required String password});
+
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  });
+
+  Future<void> resetPassword({
+    required String phone,
+    required String code,
+    required String newPassword,
+  });
 
   Future<MeUser> updateProfile({
     required String username,
@@ -16,6 +32,48 @@ class ApiMeRepository implements MeRepository {
   ApiMeRepository(this._client);
 
   final ApiClient _client;
+
+  @override
+  Future<void> resetPassword({
+    required String phone,
+    required String code,
+    required String newPassword,
+  }) async {
+    await _client.postJson(
+      '/api/v1/auth/password/reset',
+      body: {'phone': phone, 'code': code, 'new_password': newPassword},
+    );
+  }
+
+  @override
+  Future<AccountSecurity> getSecurity() async {
+    return AccountSecurity.fromJson(
+      await _client.getJson('/api/v1/auth/security'),
+    );
+  }
+
+  @override
+  Future<void> setupPassword({
+    required String phone,
+    required String password,
+  }) async {
+    await _client.postJson(
+      '/api/v1/auth/password/setup',
+      body: {'phone': phone, 'password': password},
+    );
+  }
+
+  @override
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    await _client.putJson(
+      '/api/v1/auth/password',
+      body: {'old_password': oldPassword, 'new_password': newPassword},
+      refreshOnUnauthorized: false,
+    );
+  }
 
   @override
   Future<MeUser> getMe() async {
