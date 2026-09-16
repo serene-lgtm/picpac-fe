@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:picpac_fe/features/me/data/account_security.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:picpac_fe/app/theme.dart';
 import 'package:picpac_fe/core/network/api_client.dart';
@@ -399,6 +400,27 @@ class _FakeChecklistRepository implements ChecklistRepository {
 }
 
 class _FakeMeRepository implements MeRepository {
+  @override
+  Future<void> resetPassword({
+    required String phone,
+    required String code,
+    required String newPassword,
+  }) async {}
+
+  @override
+  Future<AccountSecurity> getSecurity() async =>
+      const AccountSecurity(phone: '138****8000', passwordSetup: false);
+  @override
+  Future<void> setupPassword({
+    required String phone,
+    required String password,
+  }) async {}
+
+  @override
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {}
   @override
   Future<MeUser> getMe() async {
     return const MeUser(

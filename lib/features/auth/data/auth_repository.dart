@@ -57,6 +57,11 @@ abstract class AuthRepository {
 
   Future<AuthSession> refreshSession({required String refreshToken});
 
+  Future<AuthSession> loginWithPassword({
+    required String phone,
+    required String password,
+  });
+
   Future<void> logout({required String refreshToken});
 }
 
@@ -70,6 +75,7 @@ class ApiAuthRepository implements AuthRepository {
     await _client.postJson(
       '/api/v1/auth/phone/code',
       body: <String, dynamic>{'phone': phone},
+      requiresAuth: false,
     );
   }
 
@@ -79,11 +85,34 @@ class ApiAuthRepository implements AuthRepository {
     required String code,
   }) async {
     final response = await _client.postJson(
-      '/api/v1/auth/phone/login',
+      '/api/v1/auth/phone/code/login',
       body: <String, dynamic>{'phone': phone, 'code': code},
       requiresAuth: false,
     );
-    return AuthSession.fromJson(response);
+    return _loginSession(response, phone);
+  }
+
+  @override
+  Future<AuthSession> loginWithPassword({
+    required String phone,
+    required String password,
+  }) async {
+    final response = await _client.postJson(
+      '/api/v1/auth/phone/password/login',
+      body: {'phone': phone, 'password': password},
+      requiresAuth: false,
+    );
+    return _loginSession(response, phone);
+  }
+
+  AuthSession _loginSession(Map<String, dynamic> response, String phone) {
+    final user = response['user'];
+    // Retain the account used to authenticate when GET /me omits the phone.
+    return AuthSession.fromJson({
+      ...response,
+      if (user is Map<String, dynamic>)
+        'user': {...user, 'phone': user['phone'] ?? phone},
+    });
   }
 
   @override

@@ -1,0 +1,9 @@
+Module,login,,,,
+Image Path,assets/pages/login,,,,
+Assets Path,assets/common,,,,
+Flow,"初始页面是登录--验证码，获取验证码的按钮一开始是灰色的，直到输入完11位大陆手机码变成与主题呼应的孔雀蓝色；
+通过切换tab可跳转到登录--密码，输入5次不对则锁定15分钟，15分钟后一切清零可重试；
+如果用户需要注册的话，可通过“验证码注册”跳转到登录--验证码页面；",,,,
+Page Name,Reference Image,Datasource,API Endpoint,Note,Reference Asset
+登录--验证码,login.png,,POST /api/v1/auth/phone/code/login,,
+登录--密码,login_password.png,,POST /api/v1/auth/phone/password/login,,
