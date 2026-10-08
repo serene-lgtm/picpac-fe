@@ -76,33 +76,47 @@ class _DefaultItemCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The bundled 2000 × 2000 asset has large transparent margins.
-    // Crop those margins in the widget so its visible size matches OSS covers.
-    return Center(
-      child: SizedBox(
-        width: iconSize,
-        height: iconSize,
-        child: FittedBox(
-          fit: BoxFit.cover,
-          clipBehavior: Clip.hardEdge,
-          child: SizedBox(
-            width: 961,
-            height: 1112,
-            child: Stack(
-              clipBehavior: Clip.hardEdge,
-              children: [
-                Positioned(
-                  left: -304,
-                  top: -553,
-                  width: 2000,
-                  height: 2000,
-                  child: Image.asset('assets/common/gift_box.png'),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final giftSize = (constraints.biggest.shortestSide * 0.5).clamp(
+          0.0,
+          iconSize,
+        );
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFFD4E2DD),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
+            child: SizedBox(
+              width: giftSize,
+              height: giftSize,
+              child: FittedBox(
+                fit: BoxFit.contain,
+                clipBehavior: Clip.hardEdge,
+                // Remove the asset's transparent margins, then size the visible
+                // gift to half the cover, matching the server default cover.
+                child: SizedBox(
+                  width: 961,
+                  height: 1112,
+                  child: Stack(
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      Positioned(
+                        left: -304,
+                        top: -553,
+                        width: 2000,
+                        height: 2000,
+                        child: Image.asset('assets/common/gift_box.png'),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
