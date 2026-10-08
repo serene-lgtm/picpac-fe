@@ -165,14 +165,6 @@ class ItemsList extends StatelessWidget {
               );
             },
           ),
-          const Positioned(
-            top: 70,
-            right: 4,
-            bottom: 86,
-            child: IgnorePointer(
-              child: FittedBox(fit: BoxFit.scaleDown, child: AlphabetIndex()),
-            ),
-          ),
         ],
       ),
     );

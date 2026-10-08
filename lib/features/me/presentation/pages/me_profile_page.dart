@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/me.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../data/me_repository.dart';
 import '../widgets/me_widgets.dart';
 
@@ -28,6 +31,8 @@ class _MeProfilePageState extends State<MeProfilePage> {
   XFile? _pickedAvatar;
   bool _usernameTouched = false;
   bool _saving = false;
+  Timer? _toastTimer;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -43,6 +48,7 @@ class _MeProfilePageState extends State<MeProfilePage> {
 
   Future<MeUser> _loadMe() async {
     final user = await widget.meRepository.getMe();
+    if (!mounted) return user;
     _applyUser(user);
     return user;
   }
@@ -55,6 +61,7 @@ class _MeProfilePageState extends State<MeProfilePage> {
 
   @override
   void dispose() {
+    _toastTimer?.cancel();
     _usernameController.dispose();
     super.dispose();
   }
@@ -125,11 +132,20 @@ class _MeProfilePageState extends State<MeProfilePage> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     setState(() => _usernameTouched = true);
     final username = _usernameController.text.trim();
-    if (username.isEmpty || _saving) return;
+    if (username.isEmpty || username.runes.length > 32) {
+      _showError('用户名长度需为 1–32 个字符');
+      return;
+    }
 
-    setState(() => _saving = true);
+    FocusScope.of(context).unfocus();
+    _toastTimer?.cancel();
+    setState(() {
+      _saving = true;
+      _errorMessage = null;
+    });
     try {
       final updated = await widget.meRepository.updateProfile(
         username: username,
@@ -138,9 +154,28 @@ class _MeProfilePageState extends State<MeProfilePage> {
         avatar: _pickedAvatar == null ? null : avatarPart(_pickedAvatar!),
       );
       if (mounted) Navigator.of(context).pop(updated);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      _showError(switch (error.statusCode) {
+        400 => '资料格式不正确，请检查用户名、生日或头像后重试',
+        401 => '登录已过期，请重新登录',
+        404 => '账号不存在，请重新登录',
+        502 => '头像上传失败，请稍后重试',
+        _ => '保存失败，服务暂时不可用，请稍后重试',
+      });
+    } catch (_) {
+      if (mounted) _showError('保存失败，请检查网络后重试');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _showError(String message) {
+    _toastTimer?.cancel();
+    setState(() => _errorMessage = message);
+    _toastTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _errorMessage = null);
+    });
   }
 
   @override
@@ -151,59 +186,78 @@ class _MeProfilePageState extends State<MeProfilePage> {
         future: _meFuture,
         builder: (context, snapshot) {
           final profile = snapshot.data?.profile ?? widget.initialUser?.profile;
-          return Column(
+          return Stack(
             children: [
-              const MeSimpleTopBar(title: '个人资料'),
-              Expanded(
-                child:
-                    snapshot.connectionState == ConnectionState.waiting &&
-                        profile == null
-                    ? const Center(
-                        child: CircularProgressIndicator(color: Colors.white),
-                      )
-                    : snapshot.hasError && profile == null
-                    ? MeErrorState(
-                        message: snapshot.error.toString(),
-                        onRetry: () {
-                          setState(() => _meFuture = _loadMe());
-                        },
-                      )
-                    : LayoutBuilder(
-                        builder: (context, constraints) {
-                          final inset = meContentInset(constraints.maxWidth);
-                          return ListView(
-                            padding: EdgeInsets.fromLTRB(inset, 4, inset, 34),
-                            children: [
-                              MeProfileAvatarCard(
-                                avatarUrl: profile?.avatarUrl ?? '',
-                                avatarSourceUrl: profile?.avatarSourceUrl ?? '',
-                                pickedAvatar: _pickedAvatar,
-                                onTap: _openAvatarActions,
-                              ),
-                              const SizedBox(height: 16),
-                              MeProfileInfoCard(
-                                usernameController: _usernameController,
-                                showUsernameError:
-                                    _usernameTouched && !hasUsername,
-                                gender: _gender,
-                                birthday: _birthday,
-                                onChanged: () => setState(() {}),
-                                onGenderChanged: (value) {
-                                  setState(() => _gender = value);
-                                },
-                                onBirthdayTap: _pickBirthday,
-                              ),
-                              const SizedBox(height: 16),
-                              MePrimaryButton(
-                                label: '保存修改',
-                                loading: _saving,
-                                onPressed: _save,
-                              ),
-                            ],
-                          );
-                        },
-                      ),
+              Column(
+                children: [
+                  const MeSimpleTopBar(title: '个人资料'),
+                  Expanded(
+                    child:
+                        snapshot.connectionState == ConnectionState.waiting &&
+                            profile == null
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                        : snapshot.hasError && profile == null
+                        ? MeErrorState(
+                            message: snapshot.error.toString(),
+                            onRetry: () {
+                              setState(() => _meFuture = _loadMe());
+                            },
+                          )
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              final inset = meContentInset(
+                                constraints.maxWidth,
+                              );
+                              return ListView(
+                                padding: EdgeInsets.fromLTRB(
+                                  inset,
+                                  4,
+                                  inset,
+                                  34,
+                                ),
+                                children: [
+                                  MeProfileAvatarCard(
+                                    avatarUrl: profile?.avatarUrl ?? '',
+                                    avatarSourceUrl:
+                                        profile?.avatarSourceUrl ?? '',
+                                    pickedAvatar: _pickedAvatar,
+                                    onTap: _openAvatarActions,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  MeProfileInfoCard(
+                                    usernameController: _usernameController,
+                                    showUsernameError:
+                                        _usernameTouched && !hasUsername,
+                                    gender: _gender,
+                                    birthday: _birthday,
+                                    onChanged: () => setState(() {}),
+                                    onGenderChanged: (value) {
+                                      setState(() => _gender = value);
+                                    },
+                                    onBirthdayTap: _pickBirthday,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  MePrimaryButton(
+                                    label: '保存修改',
+                                    loading: _saving,
+                                    onPressed: _save,
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: MeSuccessToast(message: _errorMessage!),
+                ),
             ],
           );
         },
