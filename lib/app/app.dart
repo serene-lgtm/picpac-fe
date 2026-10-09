@@ -8,6 +8,8 @@ import '../features/auth/presentation/pages/login_page.dart';
 import '../features/checklists/data/checklist_repository.dart';
 import '../features/items/data/item_repository.dart';
 import '../features/items/presentation/pages/items_page.dart';
+import '../features/launch_screen/data/launch_screen_repository.dart';
+import '../features/launch_screen/presentation/pages/launch_screen_page.dart';
 import '../features/me/data/me_repository.dart';
 import '../features/me/presentation/pages/me_page.dart';
 import '../features/packs/data/pack_repository.dart';
@@ -22,12 +24,14 @@ class PicpacApp extends StatefulWidget {
     MeRepository? meRepository,
     PackRepository? packRepository,
     SessionStore? sessionStore,
+    LaunchScreenRepository? launchScreenRepository,
   }) : _authRepositoryOverride = authRepository,
        _checklistRepositoryOverride = checklistRepository,
        _itemRepositoryOverride = itemRepository,
        _meRepositoryOverride = meRepository,
        _packRepositoryOverride = packRepository,
-       _sessionStoreOverride = sessionStore;
+       _sessionStoreOverride = sessionStore,
+       _launchScreenRepositoryOverride = launchScreenRepository;
 
   final AuthRepository? _authRepositoryOverride;
   final ChecklistRepository? _checklistRepositoryOverride;
@@ -35,6 +39,7 @@ class PicpacApp extends StatefulWidget {
   final MeRepository? _meRepositoryOverride;
   final PackRepository? _packRepositoryOverride;
   final SessionStore? _sessionStoreOverride;
+  final LaunchScreenRepository? _launchScreenRepositoryOverride;
 
   @override
   State<PicpacApp> createState() => _PicpacAppState();
@@ -44,6 +49,8 @@ class _PicpacAppState extends State<PicpacApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   AuthSession? _session;
   bool _bootstrapping = true;
+  bool _launchFinished = false;
+  late final LaunchScreenRepository _launchScreenRepository;
   late final ApiClient _apiClient;
   late final AuthRepository _authRepository;
   late final ChecklistRepository _checklistRepository;
@@ -63,6 +70,9 @@ class _PicpacAppState extends State<PicpacApp> {
     );
     _authRepository =
         widget._authRepositoryOverride ?? ApiAuthRepository(_apiClient);
+    _launchScreenRepository =
+        widget._launchScreenRepositoryOverride ??
+        ApiLaunchScreenRepository(_apiClient);
     _checklistRepository =
         widget._checklistRepositoryOverride ??
         ApiChecklistRepository(_apiClient);
@@ -124,16 +134,22 @@ class _PicpacAppState extends State<PicpacApp> {
       debugShowCheckedModeBanner: false,
       theme: PicpacTheme.light(),
       builder: (context, child) {
-        if (_session == null || child == null) return child ?? const SizedBox();
+        // Keep the Navigator subtree stable while the stored session loads.
+        // Inserting/removing its wrapper during startup can restart descendants.
         return MeSessionScope(
           authRepository: _authRepository,
           onLogout: _handleLoggedOut,
           onPasswordChanged: _resetSession,
-          phone: _session!.user.phone,
-          child: child,
+          phone: _session?.user.phone ?? '',
+          child: child ?? const SizedBox(),
         );
       },
-      home: _bootstrapping
+      home: !_launchFinished
+          ? LaunchScreenPage(
+              repository: _launchScreenRepository,
+              onFinished: () => setState(() => _launchFinished = true),
+            )
+          : _bootstrapping
           ? const _AppBootstrapPage()
           : _session == null
           ? LoginPage(

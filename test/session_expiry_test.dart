@@ -12,6 +12,8 @@ import 'package:picpac_fe/features/auth/presentation/pages/login_page.dart';
 import 'package:picpac_fe/features/items/data/item.dart';
 import 'package:picpac_fe/features/items/data/item_repository.dart';
 import 'package:picpac_fe/features/items/presentation/pages/items_page.dart';
+import 'package:picpac_fe/features/launch_screen/data/launch_screen.dart';
+import 'package:picpac_fe/features/launch_screen/data/launch_screen_repository.dart';
 import 'package:picpac_fe/features/me/data/me.dart';
 import 'package:picpac_fe/features/me/presentation/pages/me_session_scope.dart';
 
@@ -115,8 +117,14 @@ void main() {
     (tester) async {
       final store = _Store();
       await tester.pumpWidget(
-        PicpacApp(sessionStore: store, itemRepository: _Items()),
+        PicpacApp(
+          sessionStore: store,
+          itemRepository: _Items(),
+          launchScreenRepository: _LaunchScreenRepository(),
+        ),
       );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('跳过'));
       await tester.pumpAndSettle();
       final context = tester.element(find.byType(ItemsPage));
       final session = MeSessionScope.of(context);
@@ -143,4 +151,9 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+}
+
+class _LaunchScreenRepository implements LaunchScreenRepository {
+  @override
+  Future<LaunchScreen> getLaunchScreen() async => const LaunchScreen();
 }

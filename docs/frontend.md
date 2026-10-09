@@ -130,6 +130,17 @@ flutter run --dart-define=PICPAC_API_BASE_URL=http://192.168.1.23:9090
 
 ## 验证命令
 
+### 启动页排查
+
+- 启动页在冷启动或 hot restart 时请求 `GET /api/v1/app/launch-screen`；hot reload 和从后台回到前台不会再次展示。终端 `flutter run` 中按大写 `R` 可热重启。
+- 调试日志以 `[picpac.launch]` 开头，依次记录实际请求地址、配置、图片加载结果和展示结束。不会打印 OSS signed URL。
+- 配置请求最多等待 3 秒，远程图片最多等待 10 秒；失败后显示内置图片。远程图片加载完成后才开始计算 `duration_ms`。
+- 加载配置和远程图片期间仅显示纯色背景，不提前显示内置插画；失败或未启用配置时使用同色的内置默认图，不显示 me_cover 插画。
+- `skip_enabled=true` 时右上角显示“跳过”，包括图片下载期间；否则隐藏。
+- 电脑端 curl 成功仅说明电脑能访问后端；模拟器和真机应使用上方对应的 `PICPAC_API_BASE_URL`。
+
+### 自动检查
+
 ```bash
 flutter analyze
 flutter test
@@ -148,3 +159,5 @@ export ALL_PROXY=socks5h://127.0.0.1:6268
 ```
 
 端口号以本机代理软件实际显示为准。
+
+启动图使用 `BoxFit.cover` 等比例铺满屏幕，可能裁切上下或左右边缘；文字、人物等关键内容应留在素材安全区域。原生启动页和 Flutter 加载背景统一为 `#FCF8F5`，修改原生配置后需要重新构建安装，hot restart 不会更新原生启动画面。
